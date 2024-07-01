@@ -5,7 +5,7 @@
 #include "../../include/NewtonRaphsonMethod.h"
 
 // Calculate Hessian R
-Eigen::MatrixXd calHessianR(Square square, Eigen::VectorXd phi, Eigen::VectorXd theta)
+Eigen::MatrixXd calHessianR(Square square, Eigen::VectorXd theta)
 {
 	Eigen::MatrixXd HessianR(NumberOfParticles, NumberOfParticles);
 

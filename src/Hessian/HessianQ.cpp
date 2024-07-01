@@ -5,7 +5,7 @@
 
 
 // Calculate Hessian Q
-Eigen::MatrixXd calHessianQ(Square square, Eigen::VectorXd phi, Eigen::VectorXd theta)
+Eigen::MatrixXd calHessianQ(Square square, Eigen::VectorXd theta)
 {
 	Eigen::MatrixXd HessianQ(NumberOfParticles, NumberOfParticles);
 

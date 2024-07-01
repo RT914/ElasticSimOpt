@@ -4,7 +4,8 @@
 #include "Square.h"
 #include <Eigen/Dense>
 
-double kappa = 1.0;
+const double kappa = 1.0;
+const double mu = 1.0;
 
 Eigen::VectorXd Newton(Square square);
 

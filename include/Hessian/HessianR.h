@@ -2,8 +2,8 @@
 #define __HESSIANR_H__
 
 #include <Eigen/Dense>
-#include "..//Square.h"
+#include "../Square.h"
 
-Eigen::MatrixXd calHessianR(Square square, Eigen::VectorXd phi, Eigen::VectorXd theta);
+Eigen::MatrixXd calHessianR(Square square, Eigen::VectorXd theta);
 
 #endif
