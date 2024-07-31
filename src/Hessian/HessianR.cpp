@@ -3,26 +3,38 @@
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
 #include "../../include/NewtonRaphsonMethod.h"
+#include "../../include/Hessian/HessianR.h"
+
+void recursiveLoopForHesR(int depth, int maxDepth, const std::function<void(std::vector<int>&)>& process, std::vector<int>& indices) {
+    if (depth == maxDepth) {
+        process(indices);
+        return;
+    }
+    for (int i = 0; i < NumberOfParticles; i++) {
+        indices[depth] = i;
+        recursiveLoopForHesR(depth + 1, maxDepth, process, indices);
+    }
+}
 
 // Calculate Hessian R
-Eigen::MatrixXd calHessianR(Square square, Eigen::VectorXd theta)
+Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& theta)
 {
-	Eigen::MatrixXd HessianR(NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd HessianR = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
 
-	for (int xi = 0; xi < NumberOfParticles; xi++) {
-		Eigen::Vector3i grid_xi = FlatToGrid(xi);
+    auto processIndices = [&](const std::vector<int>& indices) {
+        int xi = indices[0], i = indices[1];
 
-		for (int i = 0; i < NumberOfParticles; i++) {
-			HessianR(i, xi) = 0.0;
-			Eigen::Vector3i grid_i = FlatToGrid(i);
-			Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
+        Eigen::Vector3i grid_xi = FlatToGrid(xi);
+        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
 
-			if ((abs(i_minus_xi[0]) <= 1) && (abs(i_minus_xi[1]) <= 1) && (abs(i_minus_xi[2]) <= 1)) {
-				HessianR(i, xi) = (kappa/2) * ( RiemannSum1(i_minus_xi, square.dx) + RiemannSum3(i_minus_xi, grid_xi, theta, square.dx) );
-			}
-		}
-	}
-	
+        if (allElementsWithinOne(i_minus_xi)) {
+            HessianR(i, xi) = (kappa / 2.0) * (RiemannSum1(i_minus_xi, square.dx) +
+                RiemannSum3(i_minus_xi, grid_xi, theta, square.dx));
+        }
+        };
 
-	return HessianR;
+    std::vector<int> indices(2);
+    recursiveLoopForHesR(0, 2, processIndices, indices);
+
+    return HessianR;
 }

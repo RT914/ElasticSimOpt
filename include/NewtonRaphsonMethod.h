@@ -6,6 +6,8 @@
 
 const double kappa = 1.0;
 const double mu = 1.0;
+const double rho = 1.0;
+const double dt = 1.0;
 
 Eigen::VectorXd Newton(Square square);
 

@@ -2,12 +2,14 @@
 #include "../../include/Square.h"
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
+#include "../../include/Hessian/HessianO.h"
 
-// Calculate Hessian R
+
+// Calculate Hessian O
 Eigen::MatrixXd calHessianO(Square square, Eigen::VectorXd phi)
 {
 	Eigen::MatrixXd HessianO(NumberOfParticles, 3 * NumberOfParticles);
-	Eigen::MatrixXi grid_matrix;
+	Eigen::MatrixXi grid_matrix(3,3);
 	Eigen::Vector3d VectorPhi;
 	Eigen::Vector3i axis1, axis2, axis3;
 

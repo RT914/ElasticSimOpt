@@ -2,12 +2,13 @@
 #include "../../include/Square.h"
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
+#include "../../include/Hessian/HessianP.h"
 
 // Calculate Hessian P
-Eigen::MatrixXd calHessianP(Square square, Eigen::VectorXd phi, Eigen::VectorXd theta)
+Eigen::MatrixXd calHessianP(Square square, Eigen::VectorXd phi)
 {
 	Eigen::MatrixXd HessianP(3 * NumberOfParticles, NumberOfParticles);
-	Eigen::MatrixXi grid_matrix;
+	Eigen::MatrixXi grid_matrix(3,3);
 	Eigen::Vector3i axis1, axis2, axis3;
 
 	for (int xi = 0; xi < NumberOfParticles; xi++) {
@@ -44,6 +45,7 @@ Eigen::MatrixXd calHessianP(Square square, Eigen::VectorXd phi, Eigen::VectorXd 
 						axis3 << 0, 1, 2; // ŠeŽŸŒ³‚Ì”‚©‚ç-1
 						double w1w2w3 = RiemannSum6(grid_matrix, axis3, square.dx);
 
+						
 						Eigen::Vector3d VectorPhi;
 						double Lphi1 = phi(3 * i + 1) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j + 1);
 						double Lphi2 = phi(3 * i) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j);
@@ -54,6 +56,7 @@ Eigen::MatrixXd calHessianP(Square square, Eigen::VectorXd phi, Eigen::VectorXd 
 						for (int d = 0; d < dimensions; d++) {
 							HessianP(3 * k + d, xi) += VectorPhi(d) * (w2w3w1 - w1w3w2 + w1w2w3);
 						}
+						
 					}
 				}
 			}

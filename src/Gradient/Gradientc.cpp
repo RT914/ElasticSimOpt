@@ -3,6 +3,8 @@
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
 #include "../../include/NewtonRaphsonMethod.h"
+#include "../../include/Gradient/Gradientc.h"
+
 
 // Calculate Gradient c
 Eigen::VectorXd calGradientc(Square square, Eigen::VectorXd power, Eigen::VectorXd theta)

@@ -20,7 +20,7 @@ Square createSquare(int N)
 	Eigen::Vector3d re_position;
 	Eigen::Vector3i grid_node;
 	double theta = 1.0;
-	double power = 1.5;
+	double power = 0.0;
 	velocity << 0.0, 0.0, 0.0;
 
 	double square_x = square.position(0);

@@ -50,6 +50,7 @@ int main(int argc, char* argv[]) {
 	glutMotionFunc(mouseDrag);
 	Initialize(); //‰Šúİ’è‚ÌŠÖ”‚ğŒÄ‚Ño‚·
 	glutMainLoop();
+
 	return 0;
 }
 //----------------------------------------------------
@@ -74,7 +75,6 @@ void Display(void) {
 	SimulationTime++;
 
 	fem(SimulationTime);
-	//fem_for_key(SimulationTime, input_key);
 	input_key = false;
 
 	glFlush();

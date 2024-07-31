@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "../../include/FEM.h"
-#include "../../include/FEM.h"
+#include "../../include/utils/Interpolation_util.h"
 
 
 double HatFunction(double x)
@@ -26,8 +26,6 @@ double DifferentialHatFunction(double x)
 		return 0.0;
 	}
 }
-
-
 
 int GridToFlat(Eigen::Vector3i grid_index)
 {
@@ -224,7 +222,7 @@ double RiemannSum4(const Eigen::Vector3i& grid_xi, const Eigen::Vector3d& theta,
     return totalSum;
 }
 
-// WWWWWWWW(n)多分できた
+// WWWWWWWW(n)
 // 格子間距離が1以外の処理が未完
 double RiemannSum5(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double h) {
     // m << x1, y1, z1, x2, y2, z2, x3, y3, z3 ... としたい．
@@ -276,7 +274,7 @@ double RiemannSum5(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double
 double RiemannSum6(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double h) {
     // m << x1, y1, z1, x2, y2, z2, x3, y3, z3, ..... , xn, yn, zn としたい．
     // axis << 0,0,1,... (n)
-    const int kNumDivisions = 30;
+    const int kNumDivisions = 3;
     const double kDivisionWidth = 1.0 / kNumDivisions;
 
     Eigen::VectorXd cal_points(kNumDivisions);
@@ -314,7 +312,7 @@ double RiemannSum6(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double
             }
             axisSum += sum;
         }
-        std::cout << axisSum << std::endl;
+        // std::cout << axisSum << std::endl;
         totalSum *= abs(axisSum);
     }
     return totalSum;
@@ -326,7 +324,7 @@ double RiemannSum7(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double
     // m << x1, y1, z1, x2, y2, z2, x3, y3, z3, ..... , xn, yn, zn としたい．
     // axis << 0,0,1,... (n)
 
-    const int kNumDivisions = 30;
+    const int kNumDivisions = 3;
     const double kDivisionWidth = 1.0 / kNumDivisions;
 
     Eigen::VectorXd cal_points(kNumDivisions);
@@ -375,7 +373,7 @@ double RiemannSum7(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double
             }
             axisSum += sum;
         }
-        std::cout << axisSum << std::endl;
+        // std::cout << axisSum << std::endl;
         totalSum *= abs(axisSum);
     }
     return totalSum;
@@ -394,35 +392,40 @@ void recursiveLoopForDetF(int level, int maxLevel, const std::function<void(std:
     }
 }
 
-double RiemannSumForDetF(const Eigen::VectorXd& phi, Eigen::Vector3i grid_xi, double h) {
+double RiemannSumForDetF(const Eigen::VectorXd& phi, const Eigen::Vector3i& grid_xi, double h) {
     double VolumeChangeRate = 0.0;
 
-    auto processIndices = [&](std::vector<int>& indices) {
+    auto processIndices = [&](const std::vector<int>& indices) {
         Eigen::Vector3i grid_k = FlatToGrid(indices[0]);
         Eigen::Vector3i k_minus_xi = grid_k - grid_xi;
-
         Eigen::Vector3i grid_j = FlatToGrid(indices[1]);
         Eigen::Vector3i j_minus_xi = grid_j - grid_xi;
-
         Eigen::Vector3i grid_i = FlatToGrid(indices[2]);
         Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
 
-        Eigen::Matrix3i matrix;
-        matrix << i_minus_xi, j_minus_xi, k_minus_xi;
+        // allElementsWithinOne 条件チェックを追加
+        if (allElementsWithinOne(i_minus_xi) && allElementsWithinOne(j_minus_xi) && allElementsWithinOne(k_minus_xi)) {
+            Eigen::Matrix3i matrix;
+            matrix << i_minus_xi, j_minus_xi, k_minus_xi;
+            Eigen::Vector3i axis(0, 1, 2); // 各次元の数から-1した値を挿入
+            double w1w2w3 = RiemannSum5(matrix, axis, h);
 
-        Eigen::Vector3i axis(0, 1, 2); // 各次元の数から-1した値を挿入
-        double w1w2w3 = RiemannSum5(matrix, axis, h);
-
-        double Lphi1 = phi(3 * indices[1] + 1) * phi(3 * indices[0] + 2) - phi(3 * indices[1] + 2) * phi(3 * indices[0] + 1);
-        double Lphi2 = phi(3 * indices[1]) * phi(3 * indices[0] + 2) - phi(3 * indices[1] + 2) * phi(3 * indices[0]);
-        double Lphi3 = phi(3 * indices[1]) * phi(3 * indices[0] + 1) - phi(3 * indices[1] + 1) * phi(3 * indices[0]);
-        double Lphi = phi(3 * indices[2]) * Lphi1 - phi(3 * indices[2] + 1) * Lphi2 + phi(3 * indices[2] + 2) * Lphi3;
-
-        VolumeChangeRate += Lphi * w1w2w3;
+            double Lphi1 = phi(3 * indices[1] + 1) * phi(3 * indices[0] + 2) - phi(3 * indices[1] + 2) * phi(3 * indices[0] + 1);
+            double Lphi2 = phi(3 * indices[1]) * phi(3 * indices[0] + 2) - phi(3 * indices[1] + 2) * phi(3 * indices[0]);
+            double Lphi3 = phi(3 * indices[1]) * phi(3 * indices[0] + 1) - phi(3 * indices[1] + 1) * phi(3 * indices[0]);
+            double Lphi = phi(3 * indices[2]) * Lphi1 - phi(3 * indices[2] + 1) * Lphi2 + phi(3 * indices[2] + 2) * Lphi3;
+           
+            VolumeChangeRate += Lphi * w1w2w3;
+        }
         };
 
     std::vector<int> indices(3); // 3つのインデックス用のベクター
     recursiveLoopForDetF(0, 3, processIndices, indices); // 3重ループを再帰で実行
 
     return VolumeChangeRate;
+}
+
+
+bool allElementsWithinOne(const Eigen::Vector3i& vec) {
+    return (vec.cwiseAbs().array() <= 1).all();
 }

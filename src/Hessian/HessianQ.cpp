@@ -2,10 +2,11 @@
 #include "../../include/Square.h"
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
+#include "../../include/Hessian/HessianQ.h"
 
 
 // Calculate Hessian Q
-Eigen::MatrixXd calHessianQ(Square square, Eigen::VectorXd theta)
+Eigen::MatrixXd calHessianQ(Square square)
 {
 	Eigen::MatrixXd HessianQ(NumberOfParticles, NumberOfParticles);
 

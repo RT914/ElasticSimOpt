@@ -12,6 +12,10 @@ double RiemannSum5(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double
 double RiemannSum6(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double h);
 double RiemannSum7(const Eigen::MatrixXi& m, const Eigen::VectorXi& axis, double h);
 
-double RiemannSumForDetF(const Eigen::VectorXd& phi, Eigen::Vector3i grid_xi, double h);
+double RiemannSumForDetF(const Eigen::VectorXd& phi, const Eigen::Vector3i& grid_xi, double h);
+
+// check grid diff
+bool allElementsWithinOne(const Eigen::Vector3i& vec);
+bool allElementsWithinTwo(const std::vector<Eigen::Vector3i>& diff_vectors);
 
 #endif

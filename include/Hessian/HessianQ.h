@@ -4,6 +4,6 @@
 #include <Eigen/Dense>
 #include "../Square.h"
 
-Eigen::MatrixXd calHessianQ(Square square, Eigen::VectorXd theta);
+Eigen::MatrixXd calHessianQ(Square square);
 
 #endif

@@ -17,7 +17,6 @@ Square square = createSquare(NumberOfOneDemensionParticles);
 // fem_for_key—p
 int calculation_times = 0;
 
-double dt = 1.0e-3;
 Eigen::Vector3d gravity{ 0.0, 0.0, -9.81 };
 
 Eigen::VectorXd new_phi;

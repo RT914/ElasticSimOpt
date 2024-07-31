@@ -1,9 +1,9 @@
-#ifndef __GRADIENTB_H__
-#define __GRADIENTB_H__
+#ifndef __GRADIENTC_H__
+#define __GRADIENTC_H__
 
 #include <Eigen/Dense>
 #include "../Square.h"
 
-Eigen::VectorXd calGradientb(Square square, Eigen::VectorXd phi, Eigen::VectorXd theta);
+Eigen::VectorXd calGradientc(Square square, Eigen::VectorXd power, Eigen::VectorXd theta);
 
 #endif
