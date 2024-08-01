@@ -425,6 +425,80 @@ double RiemannSumForDetF(const Eigen::VectorXd& phi, const Eigen::Vector3i& grid
     return VolumeChangeRate;
 }
 
+double RiemannSumJ(const Eigen::VectorXd& phi, const Eigen::Vector3i& grid_xi, double h, Eigen::Vector3d cal_points, double exp) {
+    double VolumeChangeRate = 0.0;
+    double kNum = cal_points.size();
+
+    for (int k = 0; k < NumberOfParticles; k++) {
+        Eigen::Vector3i k_minus_xi = FlatToGrid(k) - grid_xi;
+        if (!allElementsWithinOne(k_minus_xi)) continue;
+        
+        for (int j = 0; j < NumberOfParticles; j++) {
+            Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
+            if (!allElementsWithinOne(j_minus_xi)) continue;
+
+            for (int i = 0; i < NumberOfParticles; i++) {
+                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                if (!allElementsWithinOne(i_minus_xi)) continue;
+                
+                // ŠÖ” phi ‚ÌŒ‹‰Ê‚ð”z—ñ‚ÉŠi”[
+                double phi_vals[9] = {
+                    phi(3 * i), phi(3 * i + 1), phi(3 * i + 2),
+                    phi(3 * j), phi(3 * j + 1), phi(3 * j + 2),
+                    phi(3 * k), phi(3 * k + 1), phi(3 * k + 2)
+                };
+
+                // Še phi ‚ÌÏ‚ðŒvŽZ‚µ‚ÄŒ‹‰Ê‚ð‡¬
+                double Phi
+                    = phi_vals[0] * phi_vals[4] * phi_vals[8]
+                    + phi_vals[1] * phi_vals[5] * phi_vals[6]
+                    + phi_vals[2] * phi_vals[3] * phi_vals[7]
+                    - phi_vals[2] * phi_vals[4] * phi_vals[6]
+                    - phi_vals[1] * phi_vals[3] * phi_vals[8]
+                    - phi_vals[0] * phi_vals[5] * phi_vals[7];
+
+                for (int x = 0; x < kNum; x++) {
+                    for (int y = 0; y < kNum; y++) {
+                        for (int z = 0; z < kNum; z++) {
+                            Eigen::Vector3d cal_point(cal_points(x), cal_points(y), cal_points(z));
+
+                            // kŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvŽZ
+                            double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - i_minus_xi(0));
+                            double hat_y_i = HatFunction(cal_point(1) - i_minus_xi(1));
+                            double hat_z_i = HatFunction(cal_point(2) - i_minus_xi(2));
+
+                            // lŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvŽZ
+                            double hat_x_j = HatFunction(cal_point(0) - j_minus_xi(0));
+                            double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - j_minus_xi(1));
+                            double hat_z_j = HatFunction(cal_point(2) - j_minus_xi(2));
+                         
+                            // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvŽZ
+                            double hat_x_k = HatFunction(cal_point(0) - k_minus_xi(0));
+                            double hat_y_k = HatFunction(cal_point(1) - k_minus_xi(1));
+                            double diff_hat_z_k = DifferentialHatFunction(cal_point(2) - k_minus_xi(2));
+
+                            // Še€‚ÌŒvŽZ
+                            double term1 = diff_hat_x_i * hat_y_i * hat_z_i;
+                            double term2 = hat_x_j * diff_hat_y_j * hat_z_j;
+                            double term3 = hat_x_k * hat_y_k * diff_hat_z_k;
+
+                            double term = Phi * (term1 * term2 * term3);
+                            if (term > 1e-10) {
+                                VolumeChangeRate += pow(term, exp);
+                            }
+                            
+                        }
+                    }
+                }
+
+            }
+        }
+        
+    }
+
+    return VolumeChangeRate;
+}
+
 
 bool allElementsWithinOne(const Eigen::Vector3i& vec) {
     return (vec.cwiseAbs().array() <= 1).all();
