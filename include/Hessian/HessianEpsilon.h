@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include "../Square.h"
 
-void recursiveLoopForHesEpsilon(int level, int maxLevel, const std::function<void(std::vector<int>&)>& process, std::vector<int>& indices);
-Eigen::MatrixXd calHessianEpsilon(const Square& square, const Eigen::VectorXd& phi);
+Eigen::MatrixXd calHessianEpsilon(const Square& square);
 
 #endif

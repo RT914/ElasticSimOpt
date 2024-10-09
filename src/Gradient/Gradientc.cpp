@@ -7,25 +7,148 @@
 
 
 // Calculate Gradient c
-Eigen::VectorXd calGradientc(Square square, Eigen::VectorXd power, Eigen::VectorXd theta)
-{
-	Eigen::VectorXd Gradientc(NumberOfParticles);
+Eigen::VectorXd calGradientc(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta) {
+    Eigen::VectorXd Gradientc = Eigen::VectorXd::Zero(NumberOfParticles);
 
-	for (int xi = 0; xi < NumberOfParticles; xi++) {
+    Eigen::VectorXd Gradientc1 = calGradientc1(square, re_phi, phi, power, theta);
+    Eigen::VectorXd Gradientc2 = calGradientc2(square, re_phi, theta);
 
-		Eigen::Vector3i grid_xi = FlatToGrid(xi);
-		// ‘æˆê€
-		Gradientc(xi) = (kappa / 2) * RiemannSum4(grid_xi, theta, square.dx);
+    Gradientc = Gradientc1 - Gradientc2;
 
-		for (int i = 0; i < NumberOfParticles; i++) {
+    return Gradientc;
+}
 
-			Eigen::Vector3i grid_i = FlatToGrid(i);
-			Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
-			
-			// ‘æˆê€
-			Gradientc(xi) += (power[i] - (kappa / 2) * theta[i]) * RiemannSum1(i_minus_xi, square.dx);
-		}
-	}
+// Calculate Gradient c1
+Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta) {
+    Eigen::VectorXd Gradientc1 = Eigen::VectorXd::Zero(NumberOfParticles);
 
-	return Gradientc;
+    const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
+    const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
+    const int kNum = 2 * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const double volume_element = pow(kWidth, 3);
+
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
+        }
+    }
+
+    // ŒW”‚Ì‰Šú‰»
+    Eigen::VectorXd K = Eigen::VectorXd::Zero(NumberOfParticles);
+
+    // ŒW”‚ÌŒvZ
+    // ‘ÌÏ•Ï‰»—¦theta‚Æˆ³—Íp‚ÌŒvZ
+    for (int i = 0; i < NumberOfParticles; i++) {
+        K(i) = kappa / 2 * theta(i) + power(i);
+    }
+
+    // “à‘}ŠÖ”‚ÌŒvZ
+    // ‹æŠÔ•ªŠ„
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+                    double f_xi_0 = hat_x_xi * hat_y_xi * hat_z_xi;
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+                        double f_i_0 = hat_x_i * hat_y_i * hat_z_i;
+
+                        double WeightIXi = K(i) * f_i_0 * f_xi_0;
+                        double f_ixi = WeightIXi; // ’Œ‚Ì‚‚³
+
+                        Gradientc1(xi) += f_ixi * volume_element;
+                    }
+                }
+
+            }
+        }
+    }
+
+    return Gradientc1;
+}
+
+// Calculate Gradient c2
+Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& theta) {
+    Eigen::VectorXd Gradientc2 = Eigen::VectorXd::Zero(NumberOfParticles);
+
+    const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
+    const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
+    const int kNum = 2 * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const double volume_element = pow(kWidth, 3);
+
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
+        }
+    }
+
+    // “à‘}ŠÖ”‚ÌŒvZ
+    // ‹æŠÔ•ªŠ„
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+                    double f_xi_0 = hat_x_xi * hat_y_xi * hat_z_xi;
+
+                    double f_i_0 = 0.0;
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+                        f_i_0 += theta(i) * hat_x_i * hat_y_i * hat_z_i;
+                    }
+
+                    if (abs(f_i_0) > 1e-6) {
+                        double f_ixi = (kappa / 2) * (1 / f_i_0) * f_xi_0;
+                        Gradientc2(xi) += f_ixi * volume_element;
+                    }
+                }
+
+            }
+        }
+    }
+
+    return Gradientc2;
 }

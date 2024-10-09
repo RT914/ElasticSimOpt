@@ -10,5 +10,6 @@ const double rho = 1.0;
 const double dt = 1.0;
 
 Eigen::VectorXd Newton(Square square);
+void exportMatrix_CSV(Eigen::MatrixXd M, std::string file_name);
 
 #endif

@@ -4,6 +4,6 @@
 #include <Eigen/Dense>
 #include "../Square.h"
 
-Eigen::MatrixXd calHessianN(Square square, Eigen::VectorXd phi, Eigen::VectorXd power);
+Eigen::MatrixXd calHessianN(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power);
 
 #endif

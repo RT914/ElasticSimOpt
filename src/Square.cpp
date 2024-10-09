@@ -42,10 +42,12 @@ Square createSquare(int N)
 				double z = k * dx + base_point.z() +c * ((rand() % 2) - 1);
 				*/
 
+				// 可変の座標：mpmの粒子点と同義
 				double x = i * dx + base_point.x();
 				double y = j * dx + base_point.y();
 				double z = k * dx + base_point.z();
 
+				// 不変の座標：mpmの格子点と同義
 				double re_x = i * dx + base_point.x();
 				double re_y = j * dx + base_point.y();
 				double re_z = k * dx + base_point.z();

@@ -12,7 +12,7 @@
 
 
 // Calculate Hessian N
-Eigen::MatrixXd calHessianN(Square square, Eigen::VectorXd phi, Eigen::VectorXd power)
+Eigen::MatrixXd calHessianN(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power)
 {
 	Eigen::MatrixXd HessianN(3 * NumberOfParticles, 3 * NumberOfParticles);
 	Eigen::MatrixXd HessianEpsilon(3 * NumberOfParticles, 3 * NumberOfParticles);
@@ -20,13 +20,13 @@ Eigen::MatrixXd calHessianN(Square square, Eigen::VectorXd phi, Eigen::VectorXd 
 	Eigen::MatrixXd HessianChi(3 * NumberOfParticles, 3 * NumberOfParticles);
 	Eigen::MatrixXd HessianUpsilon(3 * NumberOfParticles, 3 * NumberOfParticles);
 
-	// HessianEpsilon = calHessianEpsilon(square, phi);
+	// HessianEpsilon = calHessianEpsilon(square);
 	// HessianXi = calHessianXi(square, phi, power);
-	// HessianChi = calHessianChi(square, phi);
-	HessianUpsilon = calHessianUpsilon(square, phi, power);
+	HessianChi = calHessianChi(square, re_phi, phi);
+	// HessianUpsilon = calHessianUpsilon(square, phi, power);
 	
-	// HessianN = HessianEpsilon + HessianXi + HessianChi + HessianUpsilon;
-	HessianN = HessianUpsilon;
+	// HessianN = HessianEpsilon - HessianXi - HessianChi - HessianUpsilon;
+	HessianN = HessianChi;
 
 	return HessianN;
 }

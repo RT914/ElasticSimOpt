@@ -1,4 +1,5 @@
 #include <Eigen/Dense>
+#include <iostream>
 #include "../../include/Square.h"
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
@@ -6,246 +7,541 @@
 #include "../../include/Gradient/Gradientd.h"
 
 
-Eigen::VectorXd calGradientd(Square square, Eigen::VectorXd phi, Eigen::VectorXd phi_previous, Eigen::VectorXd power) {
+Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power) {
     Eigen::VectorXd Gradientd(3 * NumberOfParticles);
     Gradientd.setZero();
 
-    Eigen::VectorXd Gradientd1 = calGradientd1(square, phi, phi_previous);
-    Eigen::VectorXd Gradientd2 = calGradientd2(square, phi);
-    Eigen::VectorXd Gradientd3 = calGradientd3(square, phi);
-    Eigen::VectorXd Gradientd4 = calGradientd4(square, phi, power);
-
-    Gradientd = - Gradientd1 - Gradientd2 - Gradientd3 - Gradientd4;
+    Eigen::VectorXd GradientG1 = calGradientG1(square, re_phi, phi, phi_previous);
+    
+    Eigen::VectorXd GradientG2 = calGradientG2(square, re_phi, phi, power);
+    
+    // Gradientd = - GradientG1 + GradientG2;
+    Gradientd = GradientG2;
 
     return Gradientd;
 }
 
-void recursiveLoopForGradientd(int level, int maxLevel, const std::function<void(std::vector<int>&)>& process, std::vector<int>& indices) {
-	if (level == maxLevel) {
-		process(indices);
-		return;
-	}
+Eigen::VectorXd calGradientG1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous) {
+    Eigen::VectorXd GradientG1 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
 
-	for (int i = 0; i < NumberOfParticles; i++) {
-		indices[level] = i;
-		recursiveLoopForGradientd(level + 1, maxLevel, process, indices);
-	}
+    const int kNumSection = 3; // 各区間の分割数
+    const double kWidth = square.dx / kNumSection; // 分割の正規化
+    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const double volume_element = pow(kWidth, 3);
+
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
+        }
+    }
+
+    // 内挿関数の計算
+    // 区間分割
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+
+                Eigen::VectorXd WeightIXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xi関連の内挿関数の計算
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // 内挿関数の計算
+                        // i関連の内挿関数の計算
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+                      
+                        // 各項の計算
+                        double term1 = hat_x_i * hat_y_i * hat_z_i;
+                        double term2 = hat_x_xi * hat_y_xi * hat_z_xi;
+                        
+                        for (int p = 0; p < dimensions; p++) {
+                            WeightIXi(3 * xi + p)
+                                += ( - phi(3 * i + p) + phi_previous(3 * i + p) ) * term1 * term2;
+                        }
+
+                        // GradientG1 += rho / (dt * dt) * WeightIXi.transpose()) の計算
+                        for (int col = 0; col < dimensions; col++) { // 列数
+                            GradientG1(3 * xi + col)
+                                += rho / (dt * dt) * WeightIXi(3 * xi + col) * volume_element;
+                        }
+
+                    }
+                }
+
+            }
+        }
+    }
+
+    return GradientG1;
 }
 
-// Calculate Gradient d1
-Eigen::VectorXd calGradientd1(Square square, Eigen::VectorXd phi, Eigen::VectorXd phi_previous)
-{
-    Eigen::VectorXd Gradientd1(3 * NumberOfParticles);
-    Gradientd1.setZero();
+Eigen::VectorXd calGradientG2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power) {
 
-    auto processIndices = [&](std::vector<int>& indices) {
+    
+    Eigen::VectorXd GradientG2_1 = calGradientG2_1(square, re_phi, phi);
 
-        int i = indices[1], xi = indices[0];
+    Eigen::VectorXd GradientG2_2 = calGradientG2_2(square, re_phi, phi);
 
-        Eigen::Vector3i grid_xi = FlatToGrid(xi);
+    Eigen::VectorXd GradientG2_3 = calGradientG2_3(square, re_phi, phi, power);
 
-        Eigen::Vector3i grid_i = FlatToGrid(i);
-        Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
+    // Eigen::VectorXd GradientG2 = GradientG2_1 + GradientG2_2 + GradientG2_3;
+    Eigen::VectorXd GradientG2 = GradientG2_1;
 
-        // 積分計算
-        double W =RiemannSum1(i_minus_xi, square.dx);
-
-        // 更新
-        for (int s = 0; s < 3; ++s) {
-			Gradientd1(3 * xi + s) += ( - phi[3 * i + s] + phi_previous[i] ) * (rho / dt) * W;
-        }
-
-        };
-
-    std::vector<int> indices(2); // 2つのインデックス用のベクター
-    recursiveLoopForGradientd(0, 2, processIndices, indices); // 2重ループを再帰で実行
-
-    return Gradientd1;
+    return GradientG2;
 }
 
-// Calculate Gradient d2
-Eigen::VectorXd calGradientd2(Square square, Eigen::VectorXd phi)
-{
-    Eigen::VectorXd Gradientd2(3 * NumberOfParticles);
-    Gradientd2.setZero();
 
-    auto processIndices = [&](std::vector<int>& indices) {
+Eigen::VectorXd calGradientG2_1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi) {
+    Eigen::VectorXd GradientG2_1 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
 
-        int i = indices[1], xi = indices[0];
+    const int kNumSection = 3; // 各区間の分割数
+    const double kWidth = square.dx / kNumSection; // 分割の正規化
+    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const double volume_element = pow(kWidth, 3);
 
-        Eigen::Vector3i grid_xi = FlatToGrid(xi);
-
-        Eigen::Vector3i grid_i = FlatToGrid(i);
-        Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
-
-        Eigen::MatrixXi matrix(3,1);
-        matrix << i_minus_xi;
-
-        // 積分計算
-        Eigen::VectorXi AxisW11(2); // サイズ2のベクトルを作成
-        AxisW11 << 0, 0; // 各次元の数から-1した値を挿入
-        double W11 = RiemannSum5(matrix, AxisW11, square.dx);
-
-        Eigen::VectorXi AxisW22(2); // サイズ2のベクトルを作成
-        AxisW22 << 0, 0; // 各次元の数から-1した値を挿入
-        double W22 = RiemannSum5(matrix, AxisW22, square.dx);
-
-        Eigen::VectorXi AxisW33(2); // サイズ2のベクトルを作成
-        AxisW33 << 0, 0; // 各次元の数から-1した値を挿入
-        double W33 = RiemannSum5(matrix, AxisW33, square.dx);
-
-        double W = W11 + W22 + W33;
-
-        double J = RiemannSumForDetF(phi, grid_xi, square.dx);
-
-        // 更新
-        for (int s = 0; s < 3; ++s) {
-            Gradientd2(3 * xi + s) += phi[3 * i + s] * (-1) * mu * pow(J, -2/3) * W;
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
         }
+    }
+   
+    // 内挿関数の計算
+    // 区間分割
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
-        };
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
 
-    std::vector<int> indices(2); // 2つのインデックス用のベクター
-    recursiveLoopForGradientd(0, 2, processIndices, indices); // 2重ループを再帰で実行
 
-    return Gradientd2;
+
+                }
+
+            }
+        }
+    }
+
+    return GradientG2_1;
 }
 
-// Calculate Gradient d3
-Eigen::VectorXd calGradientd3(Square square, Eigen::VectorXd phi)
-{
-    Eigen::VectorXd Gradientd3(3 * NumberOfParticles);
-    Gradientd3.setZero();
+/*
+Eigen::VectorXd calGradientG2_1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi) {
+    Eigen::VectorXd GradientG2_1 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
 
-    auto processIndices = [&](std::vector<int>& indices) {
+    const int kNumSection = 3; // 各区間の分割数
+    const double kWidth = square.dx / kNumSection; // 分割の正規化
+    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const double volume_element = pow(kWidth, 3);
 
-        int i = indices[4], j = indices[3], k = indices[2], l = indices[1], xi = indices[0];
-
-        Eigen::Vector3i grid_xi = FlatToGrid(xi);
-
-        Eigen::Vector3i grid_l = FlatToGrid(l);
-        Eigen::Vector3i l_minus_xi = grid_l - grid_xi;
-
-        Eigen::Vector3i grid_k = FlatToGrid(k);
-        Eigen::Vector3i k_minus_xi = grid_k - grid_xi;
-
-        Eigen::Vector3i grid_j = FlatToGrid(j);
-        Eigen::Vector3i j_minus_xi = grid_j - grid_xi;
-
-        Eigen::Vector3i grid_i = FlatToGrid(i);
-        Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
-
-        Eigen::MatrixXi matrix(3,4);
-        matrix << i_minus_xi, j_minus_xi, k_minus_xi, l_minus_xi;
-
-        // 積分計算
-        Eigen::VectorXi AxisW11231(5); // サイズ5のベクトルを作成
-        AxisW11231 << 0, 0, 1, 2, 0; // 各次元の数から-1した値を挿入
-        double W11231 = RiemannSum5(matrix, AxisW11231, square.dx);
-        Eigen::VectorXi AxisW11132(5); // サイズ5のベクトルを作成
-        AxisW11132 << 0, 0, 0, 2, 1; // 各次元の数から-1した値を挿入
-        double W11132 = RiemannSum5(matrix, AxisW11132, square.dx);
-        Eigen::VectorXi AxisW11123(5); // サイズ5のベクトルを作成
-        AxisW11123 << 0, 0, 0, 1, 2; // 各次元の数から-1した値を挿入
-        double W11123 = RiemannSum5(matrix, AxisW11123, square.dx);
-        Eigen::VectorXi AxisW22231(5); // サイズ5のベクトルを作成
-        AxisW22231 << 1, 1, 1, 2, 0; // 各次元の数から-1した値を挿入
-        double W22231 = RiemannSum5(matrix, AxisW22231, square.dx);
-        Eigen::VectorXi AxisW22132(5); // サイズ5のベクトルを作成
-        AxisW22132 << 1, 1, 0, 2, 1; // 各次元の数から-1した値を挿入
-        double W22132 = RiemannSum5(matrix, AxisW22132, square.dx);
-        Eigen::VectorXi AxisW22123(5); // サイズ5のベクトルを作成
-        AxisW22123 << 1, 1, 0, 1, 2; // 各次元の数から-1した値を挿入
-        double W22123 = RiemannSum5(matrix, AxisW22123, square.dx);
-        Eigen::VectorXi AxisW33231(5); // サイズ5のベクトルを作成
-        AxisW33231 << 2, 2, 1, 2, 0; // 各次元の数から-1した値を挿入
-        double W33231 = RiemannSum5(matrix, AxisW33231, square.dx);
-        Eigen::VectorXi AxisW33132(5); // サイズ5のベクトルを作成
-        AxisW33132 << 2, 2, 0, 2, 1; // 各次元の数から-1した値を挿入
-        double W33132 = RiemannSum5(matrix, AxisW33132, square.dx);
-        Eigen::VectorXi AxisW33123(5); // サイズ5のベクトルを作成
-        AxisW33123 << 2, 2, 0, 1, 2; // 各次元の数から-1した値を挿入
-        double W33123 = RiemannSum5(matrix, AxisW33123, square.dx);
-
-        double J = RiemannSumForDetF(phi, grid_xi, square.dx);
-
-        double W = W11231 - W11132 + W11123 + W22231 - W22132 + W22123 + W33231 - W33132 + W33123;
-
-        // phiの計算
-        Eigen::VectorXd VectorPhi(3);
-        VectorPhi <<
-            phi(3 * k + 1) * phi(3 * l + 2) - phi(3 * k + 2) * phi(3 * l + 1),
-            -(phi(3 * k) * phi(3 * l + 2) - phi(3 * k + 2) * phi(3 * l)),
-            phi(3 * k)* phi(3 * l + 1) - phi(3 * k + 1) * phi(3 * l);
-
-        double Phi = phi[3 * i] * phi[3 * j] + phi[3 * i + 1] * phi[3 * j + 1] + phi[3 * i + 2] * phi[3 * j + 2];
-
-        // 更新
-        for (int s = 0; s < 3; ++s) {
-            Gradientd3(3 * xi + s) += VectorPhi[s] * Phi * (1.0/3.0) * mu * pow(J, -2/3) * W;
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
         }
+    }
 
-        };
+    // 内挿関数の計算
+    // 区間分割
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
-    std::vector<int> indices(5); // 5つのインデックス用のベクター
-    recursiveLoopForGradientd(0, 5, processIndices, indices); // 5重ループを再帰で実行
+                Eigen::VectorXd WeightIXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
 
-    return Gradientd3;
+                std::cout << "-------------------------------------------------" << std::endl;
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xi関連の内挿関数の計算
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+                    double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - P_xi(2));
+
+                    // 体積変化率の計算
+                    double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -2.0 / 3.0);
+                    if (detF > 0.0) {
+                        std::cout << detF << std::endl;
+                    }
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // i関連の内挿関数の計算
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+                        double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - P_i(2));
+
+                        // 各項の計算
+                        double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
+                        double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
+                        double w_i_3 = hat_x_i * hat_y_i * diff_hat_x_i;
+
+                        double w_xi_1 = diff_hat_x_xi * hat_y_xi * hat_z_xi;
+                        double w_xi_2 = hat_x_xi * diff_hat_y_xi * hat_z_xi;
+                        double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_x_xi;
+
+                        for (int p = 0; p < dimensions; p++) {
+                            WeightIXi(3 * xi + p) += phi(3 * i + p) * (w_i_1 * w_xi_1 + w_i_2 * w_xi_2 + w_i_3 * w_xi_3);
+                        }
+
+                    }
+
+                    for (int row = 0; row < dimensions; row++) { // 行数
+                        GradientG2_1(3 * xi + row) += -mu * volume_element * WeightIXi(3 * xi + row) * detF;
+                    }
+
+                }
+
+            }
+        }
+    }
+
+    return GradientG2_1;
+}
+*/
+
+Eigen::VectorXd calGradientG2_2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi) {
+    Eigen::VectorXd GradientG2_2 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+    const int kNumSection = 3; // 各区間の分割数
+    const double kWidth = square.dx / kNumSection; // 分割の正規化
+    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const double volume_element = pow(kWidth, 3);
+
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
+        }
+    }
+
+    // 係数の初期化
+    Eigen::MatrixXd Phi_IJ = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd Phi_KL = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
+
+    // 係数の計算
+    // 現在座標phiの計算
+    for (int i = 0; i < NumberOfParticles; i++) {
+        for (int j = 0; j < NumberOfParticles; j++) {
+            Phi_IJ(i, j) 
+                = phi(3 * i) * phi(3 * j) + phi(3 * i + 1) * phi(3 * j + 1) + phi(3 * i + 2) * phi(3 * j + 2);
+        }
+    }
+
+    for (int k = 0; k < NumberOfParticles; k++) {
+        for (int l = 0; l < NumberOfParticles; l++) {
+            double Phi1 = phi(3 * k + 1) * phi(3 * l + 2) - phi(3 * k + 2) * phi(3 * l + 1);
+            double Phi2 = -(phi(3 * k) * phi(3 * l + 2) - phi(3 * k + 2) * phi(3 * l));
+            double Phi3 = phi(3 * k) * phi(3 * l + 1) - phi(3 * k + 1) * phi(3 * l);
+            Eigen::Vector3d Phi = { Phi1, Phi2, Phi3 };
+
+            for (int p = 0; p < dimensions; p++) {
+                Phi_KL(k, 3 * l + p) = Phi(p);
+            }
+        }
+    }
+
+    // 内挿関数の計算
+    // 区間分割
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+                Eigen::VectorXd WeightIJ = Eigen::VectorXd::Zero(NumberOfParticles);
+                Eigen::VectorXd WeightKLXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xi関連の内挿関数の計算
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+                    double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - P_xi(2));
+
+                    // 体積変化率の計算
+                    double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -5.0 / 3.0);
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // i関連の内挿関数の計算
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+                        double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - P_i(2));
+
+                        double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
+                        double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
+                        double w_i_3 = hat_x_i * hat_y_i * diff_hat_x_i;
+
+                        for (int j = 0; j < NumberOfParticles; j++) {
+                            Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
+                            if (!allElementsWithinOne(j_minus_xi)) continue;
+                            
+                            Eigen::Vector3d P_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
+
+                            // j関連の内挿関数の計算
+                            double hat_x_j = HatFunction(cal_point(0) - P_j(0));
+                            double diff_hat_x_j = DifferentialHatFunction(cal_point(0) - P_j(0));
+                            double hat_y_j = HatFunction(cal_point(1) - P_j(1));
+                            double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - P_j(1));
+                            double hat_z_j = HatFunction(cal_point(2) - P_j(2));
+                            double diff_hat_z_j = DifferentialHatFunction(cal_point(2) - P_j(2));
+
+                            double w_j_1 = diff_hat_x_j * hat_y_j * hat_z_j;
+                            double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
+                            double w_j_3 = hat_x_j * hat_y_j * diff_hat_x_j;
+
+                            WeightIJ(xi)
+                                += Phi_IJ(i, j) * (w_i_1 * w_j_1 + w_i_2 * w_j_2 + w_i_3 * w_j_3);
+                        }
+                    }
+
+
+                    for (int k = 0; k < NumberOfParticles; k++) {
+                        Eigen::Vector3i k_minus_xi = FlatToGrid(k) - grid_xi;
+                        if (!allElementsWithinOne(k_minus_xi)) continue;
+
+                        Eigen::Vector3d P_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
+
+                        // k関連の内挿関数の計算
+                        double hat_x_k = HatFunction(cal_point(0) - P_k(0));
+                        double diff_hat_x_k = DifferentialHatFunction(cal_point(0) - P_k(0));
+                        double hat_y_k = HatFunction(cal_point(1) - P_k(1));
+                        double diff_hat_y_k = DifferentialHatFunction(cal_point(1) - P_k(1));
+                        double hat_z_k = HatFunction(cal_point(2) - P_k(2));
+
+                        for (int l = 0; l < NumberOfParticles; l++) {
+                            Eigen::Vector3i l_minus_xi = FlatToGrid(l) - grid_xi;
+                            if (!allElementsWithinOne(l_minus_xi)) continue;
+
+                            Eigen::Vector3d P_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
+
+                            // l関連の内挿関数の計算
+                            double hat_x_l = HatFunction(cal_point(0) - P_l(0));
+                            double hat_y_l = HatFunction(cal_point(1) - P_l(1));
+                            double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - P_l(1));
+                            double hat_z_l = HatFunction(cal_point(2) - P_l(2));
+                            double diff_hat_z_l = DifferentialHatFunction(cal_point(2) - P_l(2));
+
+                            // 各項の計算
+                            double w_k_2 = hat_x_k * diff_hat_y_k * hat_z_k;
+                            double w_l_3 = hat_x_l * hat_y_l * diff_hat_z_l;
+                            double w_xi_1 = diff_hat_x_xi * hat_y_xi * hat_z_xi;
+
+                            double w_k_1 = diff_hat_x_k * hat_y_k * hat_z_k;
+                            double w_xi_2 = hat_x_xi * diff_hat_y_xi * hat_z_xi;
+
+                            double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
+                            double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
+
+                            for (int p = 0; p < dimensions; p++) {
+                                WeightKLXi(3 * xi + p) 
+                                    += Phi_KL(k, 3 * l + p) 
+                                    * (w_k_2 * w_l_3 * w_xi_1 - w_k_1 * w_l_3 * w_xi_2 + w_k_1 * w_l_2 * w_xi_3);
+                            }
+
+                        }
+                    }
+
+                    // GradientG2_2 += 1/3 * mu * J^(-5.0/3.0)) * WeightIJ * WeightKLXi.transpose() の計算
+                    for (int col = 0; col < dimensions; col++) { // 列数
+                        GradientG2_2(3 * xi + col)
+                            += (1.0 / 3.0) * mu * detF * WeightIJ(xi) * WeightKLXi(3 * xi + col) * volume_element;
+                    }
+
+                }
+
+            }
+        }
+    }
+
+    return GradientG2_2;
 }
 
-// Calculate Gradient d4
-Eigen::VectorXd calGradientd4(Square square, Eigen::VectorXd phi, Eigen::VectorXd power)
-{
-    Eigen::VectorXd Gradientd4(3 * NumberOfParticles);
-    Gradientd4.setZero();
 
-    auto processIndices = [&](std::vector<int>& indices) {
+Eigen::VectorXd calGradientG2_3(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power) {
+    Eigen::VectorXd GradientG2_3 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
 
-        int i = indices[3], j = indices[2], k = indices[1], xi = indices[0];
+    const int kNumSection = 3; // 各区間の分割数
+    const double kWidth = square.dx / kNumSection; // 分割の正規化
+    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const double volume_element = pow(kWidth, 3);
 
-        Eigen::Vector3i grid_xi = FlatToGrid(xi);
-
-        Eigen::Vector3i grid_k = FlatToGrid(k);
-        Eigen::Vector3i k_minus_xi = grid_k - grid_xi;
-
-        Eigen::Vector3i grid_j = FlatToGrid(j);
-        Eigen::Vector3i j_minus_xi = grid_j - grid_xi;
-
-        Eigen::Vector3i grid_i = FlatToGrid(i);
-        Eigen::Vector3i i_minus_xi = grid_i - grid_xi;
-
-        Eigen::MatrixXi matrix(3,3);
-        matrix << i_minus_xi, j_minus_xi, k_minus_xi;
-
-        // 積分計算
-        Eigen::VectorXi AxiswW231(3); // サイズ3のベクトルを作成
-        AxiswW231 << 1, 2, 0; // 各次元の数から-1した値を挿入
-        double wW231 = RiemannSum7(matrix, AxiswW231, square.dx);
-        Eigen::VectorXi AxiswW132(3); // サイズ3のベクトルを作成
-        AxiswW132 << 0, 2, 1; // 各次元の数から-1した値を挿入
-        double wW132 = RiemannSum7(matrix, AxiswW132, square.dx);
-        Eigen::VectorXi AxiswW123(3); // サイズ3のベクトルを作成
-        AxiswW123 << 0, 1, 2; // 各次元の数から-1した値を挿入
-        double wW123 = RiemannSum7(matrix, AxiswW123, square.dx);
-
-        double W = wW231 - wW132 + wW123;
-
-        // phiの計算
-        Eigen::VectorXd VectorPhi(3);
-        VectorPhi <<
-            phi(3 * i + 1) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j + 1),
-            -(phi(3 * i) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j)),
-            phi(3 * i)* phi(3 * j + 1) - phi(3 * i + 1) * phi(3 * j);
-
-        // 更新
-        for (int s = 0; s < 3; ++s) {
-            Gradientd4(3 * xi + s) += VectorPhi[s] * power[k] * W;
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = -1; offset <= 0; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            index++;
         }
+    }
 
-        };
+    // 係数の初期化
+    Eigen::MatrixXd Phi_IJ = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
 
-    std::vector<int> indices(4); // 4つのインデックス用のベクター
-    recursiveLoopForGradientd(0, 4, processIndices, indices); // 4重ループを再帰で実行
+    // 係数の計算
+    // 現在座標phiの計算
+    for (int i = 0; i < NumberOfParticles; i++) {
+        for (int j = 0; j < NumberOfParticles; j++) {
+            double Phi1 = phi(3 * i + 1) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j + 1);
+            double Phi2 = -(phi(3 * i) * phi(3 * j + 2) - phi(3 * i + 2) * phi(3 * j));
+            double Phi3 = phi(3 * i) * phi(3 * j + 1) - phi(3 * i + 1) * phi(3 * j);
+            Eigen::Vector3d Phi = { Phi1, Phi2, Phi3 };
 
-    return Gradientd4;
+            for (int p = 0; p < dimensions; p++) {
+                Phi_IJ(i, 3 * j + p) = Phi(p);
+            }
+        }
+    }
+
+    // 内挿関数の計算
+    // 区間分割
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+                Eigen::VectorXd WeightIJXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+                Eigen::VectorXd WeightK = Eigen::VectorXd::Zero(NumberOfParticles);
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d P_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xi関連の内挿関数の計算
+                    double hat_x_xi = HatFunction(cal_point(0) - P_xi(0));
+                    double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - P_xi(0));
+                    double hat_y_xi = HatFunction(cal_point(1) - P_xi(1));
+                    double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - P_xi(1));
+                    double hat_z_xi = HatFunction(cal_point(2) - P_xi(2));
+                    double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - P_xi(2));
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // i関連の内挿関数の計算
+                        double hat_x_i = HatFunction(cal_point(0) - P_i(0));
+                        double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - P_i(0));
+                        double hat_y_i = HatFunction(cal_point(1) - P_i(1));
+                        double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - P_i(1));
+                        double hat_z_i = HatFunction(cal_point(2) - P_i(2));
+
+                        for (int j = 0; j < NumberOfParticles; j++) {
+                            Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
+                            if (!allElementsWithinOne(j_minus_xi)) continue;
+
+                            Eigen::Vector3d P_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
+                            
+                            // j関連の内挿関数の計算
+                            double hat_x_j = HatFunction(cal_point(0) - P_j(0));
+                            double hat_y_j = HatFunction(cal_point(1) - P_j(1));
+                            double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - P_j(1));
+                            double hat_z_j = HatFunction(cal_point(2) - P_j(2));
+                            double diff_hat_z_j = DifferentialHatFunction(cal_point(2) - P_j(2));
+
+                            // 各項の計算
+                            double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
+                            double w_j_3 = hat_x_j * hat_y_j * diff_hat_z_j;
+                            double w_xi_1 = diff_hat_x_xi * hat_y_xi * hat_z_xi;
+
+                            double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
+                            double w_xi_2 = hat_x_xi * diff_hat_y_xi * hat_z_xi;
+
+                            double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
+                            double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
+
+                            for (int p = 0; p < dimensions; p++) {
+                                WeightIJXi(3 * xi + p)
+                                    += Phi_IJ(i, 3 * j + p)
+                                    * (w_i_2 * w_j_3 * w_xi_1 - w_i_1 * w_j_3 * w_xi_2 + w_i_1 * w_j_2 * w_xi_3);
+                            }
+
+                        }
+                    }
+
+                    for (int k = 0; k < NumberOfParticles; k++) {
+                        Eigen::Vector3i k_minus_xi = FlatToGrid(k) - grid_xi;
+                        if (!allElementsWithinOne(k_minus_xi)) continue;
+
+                        Eigen::Vector3d P_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
+
+                        // 内挿関数の計算
+                        // k関連の内挿関数の計算
+                        double hat_x_k = HatFunction(cal_point(0) - P_k(0));
+                        double hat_y_k = HatFunction(cal_point(1) - P_k(1));
+                        double hat_z_k = HatFunction(cal_point(2) - P_k(2));
+
+                        // 各項の計算
+                        double w_k = hat_x_k * hat_y_k * hat_z_k;
+
+                        WeightK(xi) += power(k) * w_k;
+                            
+                    }
+
+                    // GradientG2_3 += WeightIJXi.transpose() * WeightK の計算
+                    for (int col = 0; col < dimensions; col++) { // 列数
+                        GradientG2_3(3 * xi + col) += WeightIJXi(3 * xi + col) * WeightK(xi) * volume_element;
+                    }
+
+                }
+
+            }
+        }
+    }
+
+    return GradientG2_3;
 }

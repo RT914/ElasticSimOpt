@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include "../Square.h"
 
-Eigen::MatrixXd calHessianQ(Square square);
+
+Eigen::MatrixXd calHessianQ(const Square& square);
 
 #endif
