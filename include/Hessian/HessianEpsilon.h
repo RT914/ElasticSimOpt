@@ -4,6 +4,6 @@
 #include <Eigen/Dense>
 #include "../Square.h"
 
-Eigen::MatrixXd calHessianEpsilon(const Square& square);
+Eigen::MatrixXd calHessianEpsilon(const Square& square, const Eigen::VectorXd& re_phi);
 
 #endif

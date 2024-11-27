@@ -51,19 +51,28 @@ void calPosition()
 
 void fem(int SimulationTime)
 {
-
 	if (SimulationTime == 1) {
 		new_phi = Newton(square);
-	}
 
-	// update position
-	for (int i = 0; i < NumberOfParticles; i++) {
-		square.points[i].position[0] = new_phi(3 * i);
-		square.points[i].position[1] = new_phi(3 * i + 1);
-		square.points[i].position[2] = new_phi(3 * i + 2);
+		for (int i = 0; i < NumberOfParticles; i++) {
+			square.points[i].position[0] = new_phi(3 * i);
+			square.points[i].position[1] = new_phi(3 * i + 1);
+			square.points[i].position[2] = new_phi(3 * i + 2);
+		}
 	}
 
 	glColor3f(0.5, 0.0, 0.0);
-	drawSquare(square);
+	drawSquare(square, 10.0);
+	Ground();
+};
+
+void fem_vector(int SimulationTime)
+{
+	if (SimulationTime == 1) {
+		new_phi = NewtonIteration(square);
+	}
+
+	glColor3f(0.5, 0.0, 0.0);
+	drawSquareAndVector(square, new_phi, 10.0);
 	Ground();
 };

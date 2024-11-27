@@ -12,5 +12,6 @@ void calVelocity();
 Eigen::Vector3d calConflict(Eigen::Vector3d vel, Eigen::Vector3d pos);
 void calPosition();
 void fem(int SimulationTime);
+void fem_vector(int SimulationTime);
 
 #endif

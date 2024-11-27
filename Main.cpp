@@ -7,12 +7,8 @@
 #include "include/Fem.h"
 #include "Draw/Draw.h"
 #include "Camera/Camera.h"
+#include "Window/Window.h"
 
-int WindowPositionX = 100;  //生成するウィンドウ位置のX座標
-int WindowPositionY = 100;  //生成するウィンドウ位置のY座標
-int WindowWidth = 768;    //生成するウィンドウの幅
-int WindowHeight = 768;    //生成するウィンドウの高さ
-char WindowTitle[] = "FEM_H_Gamma";  //ウィンドウのタイトル
 int SimulationTime = 0;
 bool input_key = false;
 int mx, my;
@@ -41,7 +37,7 @@ int main(int argc, char* argv[]) {
 	glutInit(&argc, argv);//環境の初期化
 	glutInitWindowPosition(WindowPositionX, WindowPositionY); //ウィンドウの位置の指定
 	glutInitWindowSize(WindowWidth, WindowHeight); //ウィンドウサイズの指定
-	glutInitDisplayMode(GLUT_RGBA); //ディスプレイモードの指定
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH); //ディスプレイモードの指定
 	glutCreateWindow(WindowTitle);  //ウィンドウの作成
 	glutIdleFunc(Idle); //プログラムアイドル状態時(暇な時)に呼び出される関数
 	glutKeyboardFunc(Keyboard);//キーボード入力時に呼び出される関数を指定する
@@ -67,51 +63,41 @@ void Initialize(void) {
 // 描画の関数
 //----------------------------------------------------
 void Display(void) {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); //バッファの消去
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // バッファの消去
+
+	// カメラの更新を確実に反映
 	projection_and_modelview(g_Camera);
 
 	glColor4f(0.5f, 0.0f, 0.0f, 1.0f);
 	// printf("Simulation Time : %d回目\n", SimulationTime);
 	SimulationTime++;
-
 	fem(SimulationTime);
+	// fem_vector(SimulationTime);
 	input_key = false;
 
 	glFlush();
-};
+	glutSwapBuffers();  // ダブルバッファリングの場合は必要
+}
 
 void Idle() {
 	glutPostRedisplay(); //glutDisplayFunc()を１回実行する
 }
 
-
-void projection_and_modelview(const Camera& in_Camera)
-{
-	const double fovy_deg = (2.0 * 180.0 / M_PI) * atan(0.024 * 0.5 / in_Camera.getFocalLength());
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(fovy_deg, double(WindowWidth) / double(WindowHeight), 0.01 * in_Camera.getFocalLength(), 1000.0);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	const Eigen::Vector3d lookAtPoint = in_Camera.getLookAtPoint();
-	gluLookAt(in_Camera.getEyePoint().x(), in_Camera.getEyePoint().y(), in_Camera.getEyePoint().z(), lookAtPoint.x(), lookAtPoint.y(), lookAtPoint.z(), in_Camera.getYVector().x(), in_Camera.getYVector().y(), in_Camera.getYVector().z());
-}
-
-
 void mouseDrag(int x, int y)
 {
 	const int _dx = x - mx;
+	const int _dy = y - my;  // y方向のドラッグを追加
 	mx = x; my = y;
 
 	const double dx = double(_dx) / double(WindowWidth);
+	const double dy = double(_dy) / double(WindowHeight);
 	const double scale = 2.0;
 
-	g_Camera.rotateCameraInLocalFrameFixLookAt(dx * scale);
+	g_Camera.rotateCameraInLocalFrameFixLookAt(-dx * scale); // 横方向の回転
+	g_Camera.rotateCameraInVerticalFrameFixLookAt(-dy * scale); // 縦方向の回転を追加
 	glutPostRedisplay();
 }
+
 
 void mouseDown(int x, int y)
 {
@@ -120,15 +106,20 @@ void mouseDown(int x, int y)
 
 void mouse(int button, int state, int x, int y)
 {
-	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+	// 左クリックの処理だけを残す
+	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
 		mouseDown(x, y);
+	}
 }
 
 void Keyboard(unsigned char key, int x, int y) {
+	const double zoomSpeed = 0.05;
+
 	switch (key)
 	{
 	case 'w':
 		input_key = true;
+		break;
 	default:
 		break;
 	}

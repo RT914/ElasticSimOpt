@@ -31,6 +31,8 @@ public:
     void moveInLocalFrameFixLookAt(const Eigen::Vector3d& in_delta);
 
     void rotateCameraInLocalFrameFixLookAt(const double& in_HorizontalAngle);
+    void rotateCameraInVerticalFrameFixLookAt(const double& in_VerticalAngle);
+
 
     Eigen::Vector3d getLookAtPoint() const;
     Eigen::Vector3d getEyePoint() const;
@@ -73,4 +75,3 @@ inline Eigen::Vector3d rotateVector(const Eigen::Vector3d& in_v, const Eigen::Ve
 
 
 #endif /* Camera_h */
-

@@ -19,6 +19,7 @@ Square createSquare(int N)
 	Eigen::Vector3d position;
 	Eigen::Vector3d re_position;
 	Eigen::Vector3i grid_node;
+	// double theta = 0.5;
 	double theta = 1.0;
 	double power = 0.0;
 	velocity << 0.0, 0.0, 0.0;
@@ -30,20 +31,26 @@ Square createSquare(int N)
 	base_point << pos.x() - range, pos.y() - range, pos.z() - range;
 	srand(2);
 
-	double c = 1.0 * 0.1;
+	// double c = 1.0 * 0.1;
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 
-				/*
-				double x = i * dx + base_point.x() +c * ((rand() % 2) - 1);
-				double y = j * dx + base_point.y() +c * ((rand() % 2) - 1);
-				double z = k * dx + base_point.z() +c * ((rand() % 2) - 1);
-				*/
-
 				// 可変の座標：mpmの粒子点と同義
-				double x = i * dx + base_point.x();
+				
+				double x;
+				if (k == 0) {
+					x = i * dx + base_point.x() + 0.1;
+				}
+				else if (k == 2) {
+					x = i * dx + base_point.x() - 0.1;
+				}
+				else {
+					x = i * dx + base_point.x();
+				}
+				
+				// double x = i * dx + base_point.x();
 				double y = j * dx + base_point.y();
 				double z = k * dx + base_point.z();
 

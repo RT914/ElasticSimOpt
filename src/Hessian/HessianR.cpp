@@ -7,17 +7,18 @@
 
 
 // Calculate Hessian R
-Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& theta){
+Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& theta){
     Eigen::MatrixXd HessianR = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
 
     const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
     const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
-    const int kNum = 4 * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const int kNum = 2 * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const int AllkNum = pow(kNum, 3);// ‘SŸŒ³‚Ì‘S‹æŠÔ•ªŠ„”
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -2; offset <= 1; offset++) {
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
             cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
@@ -26,68 +27,75 @@ Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& theta){
 
     // “à‘}ŠÖ”‚ÌŒvZ
     // ‹æŠÔ•ªŠ„
-    for (int xd = 0; xd < kNum; xd++) {
-        for (int yd = 0; yd < kNum; yd++) {
-            for (int zd = 0; zd < kNum; zd++) {
-                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+    for (int d = 0; d < AllkNum; d++) {
+        int xd = d / (kNum * kNum);
+        int yd = (d / kNum) % kNum;
+        int zd = d % kNum;
+        Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
-                Eigen::MatrixXd WeightIXi = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
+        // Stencil Base‚ÌŒvZ
+        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
 
-                for (int xi = 0; xi < NumberOfParticles; xi++) {
-                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+        // Stencils—ñ‚Æstencil_num‚Ì¶¬
+        Eigen::MatrixXi stencil;
+        std::vector<int> stencil_num = generateStencil(stencil_base, stencil);
 
-                    // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
-                    double hat_x_xi = HatFunction(cal_point(0));
-                    double hat_y_xi = HatFunction(cal_point(1));
-                    double hat_z_xi = HatFunction(cal_point(2));
+        for (int xi = 0; xi < NumberOfParticles; xi++) {
+            if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
+            Eigen::Vector3i grid_xi = FlatToGrid(xi);
+            Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+            
+            // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+            double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
+            double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
+            double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
 
-                    for (int i = 0; i < NumberOfParticles; i++) {
-                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                        if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int i = 0; i < NumberOfParticles; i++) {
+                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                if (!allElementsWithinOne(i_minus_xi)) continue;
 
-                        // “à‘}ŠÖ”‚ÌŒvZ
-                        // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
-                        double hat_x_i = HatFunction(cal_point(0) - i_minus_xi(0));
-                        double hat_y_i = HatFunction(cal_point(1) - i_minus_xi(1));
-                        double hat_z_i = HatFunction(cal_point(2) - i_minus_xi(2));
+                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
-                        // Še€‚ÌŒvZ
-                        double term1 = hat_x_i * hat_y_i * hat_z_i;
-                        double term2 = hat_x_xi * hat_y_xi * hat_z_xi;
+                // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
+                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
+                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
 
-                        double WeightIXi = term1 * term2;
+                // Še€‚ÌŒvZ
+                double w_i = hat_x_i * hat_y_i * hat_z_i;
+                double w_xi = hat_x_xi * hat_y_xi * hat_z_xi;
 
-                        double WeightJ = 0.0;
+                double WeightIXi = w_i * w_xi;
+                double WeightJ = 0.0;
 
-                        for (int j = 0; j < NumberOfParticles; j++) {
-                            Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
-                            if (!allElementsWithinOne(j_minus_xi)) continue;
+                for (int j = 0; j < NumberOfParticles; j++) {
+                    Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
+                    if (!allElementsWithinOne(j_minus_xi)) continue;
 
-                            // “à‘}ŠÖ”‚ÌŒvZ
-                            // jŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
-                            double hat_x_j = HatFunction(cal_point(0) - j_minus_xi(0));
-                            double hat_y_j = HatFunction(cal_point(1) - j_minus_xi(1));
-                            double hat_z_j = HatFunction(cal_point(2) - j_minus_xi(2));
+                    Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
-                            // Še€‚ÌŒvZ
-                            double term = hat_x_j * hat_y_j * hat_z_j;
+                    // jŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                    double hat_x_j = HatFunction(cal_point(0) - grid_point_coordinates_j(0));
+                    double hat_y_j = HatFunction(cal_point(1) - grid_point_coordinates_j(1));
+                    double hat_z_j = HatFunction(cal_point(2) - grid_point_coordinates_j(2));
 
-                            WeightJ += theta(j) * term;
-                        }
+                    // Še€‚ÌŒvZ
+                    double w_j = hat_x_j * hat_y_j * hat_z_j;
 
-                        // HessianR += (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi ‚ÌŒvZ
-                        if (WeightJ < 1e-6) {
-                            HessianR(i, xi) -= (kappa / 2) * WeightIXi * volume_element;
-                        }
-                        else {
-                            HessianR(i, xi) -= (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi * volume_element;
-                        }
+                    WeightJ += theta(j) * w_j;
+                }
 
-                    }
+                // HessianR -= (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi ‚ÌŒvZ
+                if (abs(WeightJ) < 1e-10) {
+                    HessianR(i, xi) -= (kappa / 2) * WeightIXi * volume_element;
+                }
+                else {
+                    HessianR(i, xi) -= (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi * volume_element;
                 }
 
             }
         }
+
     }
 
     return HessianR;

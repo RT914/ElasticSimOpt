@@ -1,5 +1,7 @@
 #include <GL/freeglut.h>
+#include <Eigen/Dense>
 #include <stdio.h>
+#include <iostream>
 #include "Draw.h"
 #include "../include/Square.h"
 
@@ -13,70 +15,198 @@ void drawPoint(double x, double y, double z, float size) {
 	glEnd();
 }
 
+void drawVector(Eigen::Vector3d StartPoint, Eigen::Vector3d EndPoint, float width) {
+	glLineWidth(width);
+	glColor3d(0.0, 0.0, 1.0);
+	glBegin(GL_LINES);
+	glVertex3d(StartPoint(0), StartPoint(1), StartPoint(2));
+	glVertex3d(EndPoint(0), EndPoint(1), EndPoint(2));
+	glEnd();
+}
+
+
 
 //----------------------------------------------------
 // —§•û‘Ì‚Ì•`‰æ
 //----------------------------------------------------
-void drawSquare(Square square)
+void drawSquare(Square square, float scale_factor)
 {
 	int N = square.one_dimension_point_number;
 	float point_size = 3.0;
 
+	// “_‚Ì•`‰æ
 	for (int i = 0; i < square.points.size(); i++)
 	{
-		double pos_x = square.points[i].position(0);
-		double pos_y = square.points[i].position(1);
-		double pos_z = square.points[i].position(2);
+		double pos_x = square.points[i].position(0) * scale_factor;
+		double pos_y = square.points[i].position(1) * scale_factor;
+		double pos_z = square.points[i].position(2) * scale_factor;
 		drawPoint(pos_x, pos_y, pos_z, point_size);
 	}
 
-
-	// ’¸“_ŠÔ‚Ìü‚Ì•`‰æ
+	// X•ûŒü‚Ìü‚Ì•`‰æ
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N - 1; k++) {
-
 				int num = i * pow(N, 2) + j * (N)+k;
-
 				glColor3d(0.0, 0.5, 0.0);
 				glBegin(GL_LINES);
-				glVertex3d(square.points[num].position(0), square.points[num].position(1), square.points[num].position(2));
-				glVertex3d(square.points[num + 1].position(0), square.points[num + 1].position(1), square.points[num + 1].position(2));
-
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + 1].position(0) * scale_factor,
+					square.points[num + 1].position(1) * scale_factor,
+					square.points[num + 1].position(2) * scale_factor);
+				glEnd();
 			}
 		}
 	}
 
+	// Y•ûŒü‚Ìü‚Ì•`‰æ
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N - 1; j++) {
 			for (int k = 0; k < N; k++) {
-
 				int num = i * pow(N, 2) + j * (N)+k;
-
 				glColor3d(0.0, 0.5, 0.0);
 				glBegin(GL_LINES);
-				glVertex3d(square.points[num].position(0), square.points[num].position(1), square.points[num].position(2));
-				glVertex3d(square.points[num + N].position(0), square.points[num + N].position(1), square.points[num + N].position(2));
-
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + N].position(0) * scale_factor,
+					square.points[num + N].position(1) * scale_factor,
+					square.points[num + N].position(2) * scale_factor);
+				glEnd();
 			}
 		}
 	}
 
+	// Z•ûŒü‚Ìü‚Ì•`‰æ
 	for (int i = 0; i < N - 1; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 				int num = i * pow(N, 2) + j * (N)+k;
-
 				glColor3d(0.0, 0.5, 0.0);
 				glBegin(GL_LINES);
-				glVertex3d(square.points[num].position(0), square.points[num].position(1), square.points[num].position(2));
-				glVertex3d(square.points[num + pow(N, 2)].position(0), square.points[num + pow(N, 2)].position(1), square.points[num + pow(N, 2)].position(2));
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + pow(N, 2)].position(0) * scale_factor,
+					square.points[num + pow(N, 2)].position(1) * scale_factor,
+					square.points[num + pow(N, 2)].position(2) * scale_factor);
+				glEnd();
+			}
+		}
+	}
+};
 
+//----------------------------------------------------
+// —§•û‘Ì‚Ì•`‰æiŽû‘©•ûŒü‚ÌVector•\Ž¦j
+//----------------------------------------------------
+void drawSquareAndVector(Square square, Eigen::VectorXd update_phi, float scale_factor)
+{
+	int N = square.one_dimension_point_number;
+	float point_size = 3.0;
+	float vector_width = 3.0;
+	float vector_length = 3.0;
+
+	// ƒxƒNƒgƒ‹‚ð³‹K‰»‚µ‚Ü‚·‚©H (1: ³‹K‰»‚·‚é, 0: ‚»‚Ì‚Ü‚Ü)
+	int norm = 1;
+
+	// ’¸“_ŠÔ‚Ìü‚Ì•`‰æ‚Æ“_‚Ì•`‰æ
+	for (int i = 0; i < square.points.size(); i++) {
+		// Žn“_ (startV)
+		Eigen::Vector3d startV = {
+			square.points[i].position(0),
+			square.points[i].position(1),
+			square.points[i].position(2)
+		};
+
+		// I“_ (endV)
+		Eigen::Vector3d endV = {
+			update_phi(3 * i),
+			update_phi(3 * i + 1),
+			update_phi(3 * i + 2)
+		};
+
+		// •ûŒüƒxƒNƒgƒ‹‚ÌŒvŽZ (I“_ - Žn“_)
+		Eigen::Vector3d direction_vector = endV - startV;
+
+		if (norm == 1) {
+			// •ûŒüƒxƒNƒgƒ‹‚Ì³‹K‰»
+			if (direction_vector.norm() != 0) {
+				direction_vector.normalize();
+			}
+			// ƒxƒNƒgƒ‹‚Ì’·‚³‚ð’²®
+			direction_vector *= vector_length;
+		}
+		else if(norm == 0) {
+			direction_vector *= vector_length;
+		}
+		
+
+		// ƒXƒP[ƒ‹‚³‚ê‚½Žn“_‚ÌÀ•W
+		Eigen::Vector3d scaled_startV = startV * scale_factor;
+		Eigen::Vector3d scaled_endV = scaled_startV + direction_vector;
+
+		// “_‚ð•`‰æ
+		drawPoint(scaled_startV(0), scaled_startV(1), scaled_startV(2), point_size);
+
+		// ƒxƒNƒgƒ‹‚ð•`‰æ
+		drawVector(scaled_startV, scaled_endV, vector_width);
+	}
+	
+	// X•ûŒü‚Ìü‚Ì•`‰æ
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			for (int k = 0; k < N - 1; k++) {
+				int num = i * pow(N, 2) + j * (N)+k;
+				glColor3d(0.0, 0.5, 0.0);
+				glBegin(GL_LINES);
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + 1].position(0) * scale_factor,
+					square.points[num + 1].position(1) * scale_factor,
+					square.points[num + 1].position(2) * scale_factor);
+				glEnd();
 			}
 		}
 	}
 
+	// Y•ûŒü‚Ìü‚Ì•`‰æ
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N - 1; j++) {
+			for (int k = 0; k < N; k++) {
+				int num = i * pow(N, 2) + j * (N)+k;
+				glColor3d(0.0, 0.5, 0.0);
+				glBegin(GL_LINES);
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + N].position(0) * scale_factor,
+					square.points[num + N].position(1) * scale_factor,
+					square.points[num + N].position(2) * scale_factor);
+				glEnd();
+			}
+		}
+	}
 
+	// Z•ûŒü‚Ìü‚Ì•`‰æ
+	for (int i = 0; i < N - 1; i++) {
+		for (int j = 0; j < N; j++) {
+			for (int k = 0; k < N; k++) {
+				int num = i * pow(N, 2) + j * (N)+k;
+				glColor3d(0.0, 0.5, 0.0);
+				glBegin(GL_LINES);
+				glVertex3d(square.points[num].position(0) * scale_factor,
+					square.points[num].position(1) * scale_factor,
+					square.points[num].position(2) * scale_factor);
+				glVertex3d(square.points[num + pow(N, 2)].position(0) * scale_factor,
+					square.points[num + pow(N, 2)].position(1) * scale_factor,
+					square.points[num + pow(N, 2)].position(2) * scale_factor);
+				glEnd();
+			}
+		}
+	}
 
 };
 

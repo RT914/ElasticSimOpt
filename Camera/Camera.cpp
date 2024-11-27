@@ -92,6 +92,21 @@ void Camera::rotateCameraInLocalFrameFixLookAt(const double& in_HorizontalAngle)
     m_EyePoint = lookAtPoint + arm;
 }
 
+void Camera::rotateCameraInVerticalFrameFixLookAt(const double& in_VerticalAngle)
+{
+    const Eigen::Vector3d lookAtPoint = getLookAtPoint();
+    Eigen::Vector3d arm = m_DistanceToObject * m_zVector;
+
+    const Eigen::Vector3d worldRight = m_xVector; // 横軸を回転軸として使用
+
+    // y軸まわりの回転
+    m_yVector = rotateVector(m_yVector, worldRight, in_VerticalAngle);
+    m_zVector = rotateVector(m_zVector, worldRight, in_VerticalAngle);
+    arm = rotateVector(arm, worldRight, in_VerticalAngle);
+
+    m_EyePoint = lookAtPoint + arm;
+}
+
 Eigen::Vector3d Camera::getLookAtPoint() const
 {
     return m_EyePoint - m_DistanceToObject * m_zVector;

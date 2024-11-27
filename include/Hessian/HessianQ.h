@@ -5,6 +5,6 @@
 #include "../Square.h"
 
 
-Eigen::MatrixXd calHessianQ(const Square& square);
+Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi);
 
 #endif

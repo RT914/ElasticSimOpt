@@ -52,74 +52,35 @@ Eigen::Vector3i FlatToGrid(int flat_index)
 	return grid_index;
 };
 
-double RiemannSumJ(const Eigen::VectorXd& phi, const Eigen::Vector3i& grid_xi, double h, Eigen::VectorXd cal_points, double exp) {
-    double VolumeChangeRate = 0.0;
-    const int kNumSection = 3; // 各区間の分割数
-    const double kWidth = h / kNumSection; // 分割の正規化
-    const int kNum = 4 * kNumSection; // 全区間の分割数
+// Stencil Baseの計算関数
+Eigen::Vector3d calculateStencilBase(const Eigen::Vector3d& cal_point) {
+    // 負の方向への丸め込み（格子の始点が原点のため補正）
+    return Eigen::Vector3d(
+        std::floor(cal_point(0)) + 1,
+        std::floor(cal_point(1)) + 1,
+        std::floor(cal_point(2)) + 1
+    );
+}
 
+// Stencil行列とstencil_numの生成関数
+std::vector<int> generateStencil(const Eigen::Vector3d& stencil_base, Eigen::MatrixXi& stencil) {
+    // Stencilの初期化（3x8の行列として設定）
+    stencil.resize(3, 8);
+    stencil.col(0) << stencil_base(0), stencil_base(1), stencil_base(2);
+    stencil.col(1) << stencil_base(0) + 1, stencil_base(1), stencil_base(2);
+    stencil.col(2) << stencil_base(0), stencil_base(1) + 1, stencil_base(2);
+    stencil.col(3) << stencil_base(0), stencil_base(1), stencil_base(2) + 1;
+    stencil.col(4) << stencil_base(0) + 1, stencil_base(1) + 1, stencil_base(2);
+    stencil.col(5) << stencil_base(0), stencil_base(1) + 1, stencil_base(2) + 1;
+    stencil.col(6) << stencil_base(0) + 1, stencil_base(1), stencil_base(2) + 1;
+    stencil.col(7) << stencil_base(0) + 1, stencil_base(1) + 1, stencil_base(2) + 1;
 
-    for (int k = 0; k < NumberOfParticles; k++) {
-        Eigen::Vector3i k_minus_xi = FlatToGrid(k) - grid_xi;
-        if (!allElementsWithinOne(k_minus_xi)) continue;
-        
-        for (int j = 0; j < NumberOfParticles; j++) {
-            Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
-            if (!allElementsWithinOne(j_minus_xi)) continue;
-
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
-
-                // 各 phi の積を計算して結果を合成
-                
-                double Phi
-                    = phi(3 * i) * (phi(3 * j + 1) * phi(3 * k + 2) - phi(3 * j + 2) * phi(3 * k + 1))
-                    + phi(3 * i + 1) * (phi(3 * j + 2) * phi(3 * k) - phi(3 * j) * phi(3 * k + 2))
-                    + phi(3 * i + 2) * (phi(3 * j) * phi(3 * k + 1) - phi(3 * j + 1) * phi(3 * k));
-
-                for (int x = 0; x < kNum; x++) {
-                    for (int y = 0; y < kNum; y++) {
-                        for (int z = 0; z < kNum; z++) {
-                            Eigen::Vector3d cal_point(cal_points(x), cal_points(y), cal_points(z));
-
-                            // i関連の内挿関数の計算
-                            double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - i_minus_xi(0));
-                            double hat_y_i = HatFunction(cal_point(1) - i_minus_xi(1));
-                            double hat_z_i = HatFunction(cal_point(2) - i_minus_xi(2));
-
-                            // j関連の内挿関数の計算
-                            double hat_x_j = HatFunction(cal_point(0) - j_minus_xi(0));
-                            double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - j_minus_xi(1));
-                            double hat_z_j = HatFunction(cal_point(2) - j_minus_xi(2));
-                         
-                            // k関連の内挿関数の計算
-                            double hat_x_k = HatFunction(cal_point(0) - k_minus_xi(0));
-                            double hat_y_k = HatFunction(cal_point(1) - k_minus_xi(1));
-                            double diff_hat_z_k = DifferentialHatFunction(cal_point(2) - k_minus_xi(2));
-
-                            // 各項の計算
-                            double term1 = diff_hat_x_i * hat_y_i * hat_z_i;
-                            double term2 = hat_x_j * diff_hat_y_j * hat_z_j;
-                            double term3 = hat_x_k * hat_y_k * diff_hat_z_k;
-
-                            double term = Phi * term1 * term2 * term3 * pow(kWidth, 3);
-                            
-                            if (abs(term) > 1e-10) {
-                                // std::cout << term << std::endl;
-                                VolumeChangeRate += pow(term, exp);
-                            }
-                            
-                        }
-                    }
-                }
-
-            }
-        }
-        
+    // stencil_num の計算
+    std::vector<int> stencil_num(8);
+    for (int s = 0; s < 8; s++) {
+        stencil_num[s] = GridToFlat(stencil.col(s));
     }
-
-    return VolumeChangeRate;
+    return stencil_num;
 }
 
 double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid_xi, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, int NumberOfParticles, double exp)
@@ -130,34 +91,34 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
         Eigen::Vector3i k_minus_xi = FlatToGrid(k) - grid_xi;
         if (!allElementsWithinOne(k_minus_xi)) continue;
 
-        Eigen::Vector3d P_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
+        Eigen::Vector3d grid_point_coordinates_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
 
         // k関連の内挿関数の計算
-        double f_k_3 = HatFunction(cal_point(0) - P_k(0)) *
-            HatFunction(cal_point(1) - P_k(1)) *
-            DifferentialHatFunction(cal_point(2) - P_k(2));
+        double f_k_3 = HatFunction(cal_point(0) - grid_point_coordinates_k(0)) *
+            HatFunction(cal_point(1) - grid_point_coordinates_k(1)) *
+            DifferentialHatFunction(cal_point(2) - grid_point_coordinates_k(2));
 
         for (int j = 0; j < NumberOfParticles; j++) {
             Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
             if (!allElementsWithinOne(j_minus_xi)) continue;
 
-            Eigen::Vector3d P_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
+            Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
             // j関連の内挿関数の計算
-            double f_j_2 = HatFunction(cal_point(0) - P_j(0)) *
-                DifferentialHatFunction(cal_point(1) - P_j(1)) *
-                HatFunction(cal_point(2) - P_j(2));
+            double f_j_2 = HatFunction(cal_point(0) - grid_point_coordinates_j(0)) *
+                DifferentialHatFunction(cal_point(1) - grid_point_coordinates_j(1)) *
+                HatFunction(cal_point(2) - grid_point_coordinates_j(2));
 
             for (int i = 0; i < NumberOfParticles; i++) {
                 Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
                 if (!allElementsWithinOne(i_minus_xi)) continue;
 
-                Eigen::Vector3d P_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                 // i関連の内挿関数の計算
-                double f_i_1 = DifferentialHatFunction(cal_point(0) - P_i(0)) *
-                    HatFunction(cal_point(1) - P_i(1)) *
-                    HatFunction(cal_point(2) - P_i(2));
+                double f_i_1 = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0)) *
+                    HatFunction(cal_point(1) - grid_point_coordinates_i(1)) *
+                    HatFunction(cal_point(2) - grid_point_coordinates_i(2));
 
                 double Phi0 = phi(3 * i) * (phi(3 * j + 1) * phi(3 * k + 2) - phi(3 * j + 2) * phi(3 * k + 1))
                     + phi(3 * i + 1) * (phi(3 * j + 2) * phi(3 * k) - phi(3 * j) * phi(3 * k + 2))

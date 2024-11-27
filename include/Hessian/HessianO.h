@@ -5,6 +5,6 @@
 #include "../Square.h"
 
 
-Eigen::MatrixXd calHessianO(Square square, Eigen::VectorXd phi);
+Eigen::MatrixXd calHessianO(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi);
 
 #endif
