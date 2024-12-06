@@ -44,28 +44,28 @@ Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& re_phi,
             if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
             Eigen::Vector3i grid_xi = FlatToGrid(xi);
             Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
-            
+
             // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
             double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
             double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
             double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
-                // iä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
                 // äeçÄÇÃåvéZ
-                double w_i = hat_x_i * hat_y_i * hat_z_i;
+                double w_tau = hat_x_tau * hat_y_tau * hat_z_tau;
                 double w_xi = hat_x_xi * hat_y_xi * hat_z_xi;
 
-                double WeightIXi = w_i * w_xi;
+                double WeightTauXi = w_tau * w_xi;
                 double WeightJ = 0.0;
 
                 for (int j = 0; j < NumberOfParticles; j++) {
@@ -85,12 +85,11 @@ Eigen::MatrixXd calHessianR(const Square& square, const Eigen::VectorXd& re_phi,
                     WeightJ += theta(j) * w_j;
                 }
 
-                // HessianR -= (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi ÇÃåvéZ
-                if (abs(WeightJ) < 1e-10) {
-                    HessianR(i, xi) -= (kappa / 2) * WeightIXi * volume_element;
+                if (abs(WeightJ) < 1e-6) {
+                    HessianR(xi, tau) += -(kappa / 2) * WeightTauXi * volume_element;
                 }
                 else {
-                    HessianR(i, xi) -= (kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightIXi * volume_element;
+                    HessianR(xi, tau) += -(kappa / 2) * (1 + 1 / pow(WeightJ, 2)) * WeightTauXi * volume_element;
                 }
 
             }

@@ -9,7 +9,7 @@
 // Calculate Hessian P
 Eigen::MatrixXd calHessianP(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi)
 {
-    Eigen::MatrixXd HessianP = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd HessianP = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
 
     const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
     const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
@@ -27,7 +27,7 @@ Eigen::MatrixXd calHessianP(const Square& square, const Eigen::VectorXd& re_phi,
     }
 
     // ŒW”‚Ì‰Šú‰»
-    Eigen::MatrixXd Phi_JK = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd Phi_JK = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
 
     // ŒW”‚ÌŒvZ
     // Œ»İÀ•Wphi‚ÌŒvZ
@@ -38,8 +38,8 @@ Eigen::MatrixXd calHessianP(const Square& square, const Eigen::VectorXd& re_phi,
             double Phi3 = phi(3 * j) * phi(3 * k + 1) - phi(3 * j + 1) * phi(3 * k);
             Eigen::Vector3d Phi = { Phi1, Phi2, Phi3 };
 
-            for (int p = 0; p < dimensions; p++) {
-                Phi_JK(3 * j + p, k) = Phi(p);
+            for (int a = 0; a < dimensions; a++) {
+                Phi_JK(j, 3 * k + a) = Phi(a);
             }
         }
     }
@@ -69,21 +69,21 @@ Eigen::MatrixXd calHessianP(const Square& square, const Eigen::VectorXd& re_phi,
             double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
             double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
-                // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
-                double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                // tauŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
-                Eigen::Matrix3d WeightJKI = Eigen::Matrix3d::Zero();
+                Eigen::Matrix3d WeightJKTau = Eigen::Matrix3d::Zero();
 
                 double WeightXi = hat_x_xi * hat_y_xi * hat_z_xi;
 
@@ -116,29 +116,27 @@ Eigen::MatrixXd calHessianP(const Square& square, const Eigen::VectorXd& re_phi,
                         // Še€‚ÌŒvZ
                         double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
                         double w_k_3 = hat_x_k * hat_y_k * diff_hat_z_k;
-                        double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
+                        double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
 
                         double w_j_1 = diff_hat_x_j * hat_y_j * hat_z_j;
-                        double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
+                        double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
 
                         double w_k_2 = hat_x_k * diff_hat_y_k * hat_z_k;
-                        double w_i_3 = hat_x_i * hat_y_i * diff_hat_z_i;
+                        double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
 
-                        for (int p = 0; p < dimensions; p++) {
-
-                            WeightJKI(p) += Phi_JK(3 * j + p, k)
-                                * (w_j_2 * w_k_3 * w_i_1 - w_j_1 * w_k_3 * w_i_2 + w_j_1 * w_k_2 * w_i_3);
-
+                        for (int a = 0; a < dimensions; a++) {
+                            WeightJKTau(a) += Phi_JK(j, 3 * k + a)
+                                * (w_j_2 * w_k_3 * w_tau_1 - w_j_1 * w_k_3 * w_tau_2 + w_j_1 * w_k_2 * w_tau_3);
                         }
 
                     }
                 }
 
                 // HessianP = WeightXi * WeightJKI ‚ÌŒvZ
-                for (int row = 0; row < dimensions; row++) { // s”
-                    double term = WeightXi * WeightJKI(row) * volume_element;
+                for (int col = 0; col < dimensions; col++) { // —ñ”
+                    double term = WeightXi * WeightJKTau(col) * volume_element;
                     if (abs(term) < 1e-10) continue;
-                    HessianP(3 * i + row, xi) += term;
+                    HessianP(xi, 3 * tau + col) += term;
                 }
 
 

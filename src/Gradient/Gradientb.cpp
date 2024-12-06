@@ -63,6 +63,7 @@ Eigen::VectorXd calGradientb1(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
                     double f_ixi = 0.0;
+                    double WeightIXi;
 
                     // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
                     double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
@@ -84,7 +85,7 @@ Eigen::VectorXd calGradientb1(const Square& square, const Eigen::VectorXd& re_ph
                         double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
                         double f_i_0 = hat_x_i * hat_y_i * hat_z_i;
 
-                        double WeightIXi = theta(i) * f_i_0 * f_xi_0;
+                        WeightIXi = theta(i) * f_i_0 * f_xi_0;
                         f_ixi += WeightIXi;
                     }
 
@@ -135,10 +136,14 @@ Eigen::VectorXd calGradientb2(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
                     // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double WeightXi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0)) * HatFunction(cal_point(1) - grid_point_coordinates_xi(1)) * HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+                    double WeightXi 
+                        = HatFunction(cal_point(0) - grid_point_coordinates_xi(0)) 
+                        * HatFunction(cal_point(1) - grid_point_coordinates_xi(1)) 
+                        * HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
 
                     // ëÃêœïœâªó¶ÇÃåvéZ
                     double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, 1.0);
+                    // std::cout << detF << std::endl;
 
                     Gradientb2(xi) += volume_element * detF * WeightXi;
                 }

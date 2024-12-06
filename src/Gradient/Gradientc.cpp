@@ -53,7 +53,7 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
     // ŒW”‚ÌŒvZ
     // ‘ÌÏ•Ï‰»—¦theta‚Æˆ³—Íp‚ÌŒvZ
     for (int i = 0; i < NumberOfParticles; i++) {
-        K(i) = kappa / 2 * theta(i) + power(i);
+        K(i) = (kappa / 2) * theta(i) + power(i);
     }
 
     // “à‘}ŠÖ”‚ÌŒvZ

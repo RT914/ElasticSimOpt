@@ -3,6 +3,7 @@
 #include "../../include/Square.h"
 #include "../../include/FEM.h"
 #include "../../include/utils/Interpolation_util.h"
+#include "../../include/NewtonRaphsonMethod.h"
 
 #include "../../include/Hessian/HessianXi.h"
 #include "../../include/Hessian/HessianChi.h"
@@ -27,22 +28,26 @@ Eigen::MatrixXd calHessianN(const Square& square, const Eigen::VectorXd& re_phi,
 	// std::cout << "-----------------------------------------------------" << std::endl;
 
 	HessianXi = calHessianXi(square, re_phi, phi, power);
+	exportMatrix_CSV(HessianXi, "csv/HessianXi.csv");
 	if (HessianXi.array().isNaN().any()) {
 		std::cerr << "NaN detected HessianXi" << std::endl;
 	}
 
 	HessianChi = calHessianChi(square, re_phi, phi);
+	exportMatrix_CSV(HessianChi, "csv/HessianChi.csv");
 	if (HessianChi.array().isNaN().any()) {
 		std::cerr << "NaN detected HessianChi" << std::endl;
 	}
 
 	HessianUpsilon = calHessianUpsilon(square, re_phi, phi, power);
+	exportMatrix_CSV(HessianUpsilon, "csv/HessianUpsilon.csv");
 	if (HessianUpsilon.array().isNaN().any()) {
 		std::cerr << "NaN detected HessianUpsilon" << std::endl;
 	}
 
-	HessianN = HessianEpsilon - HessianXi + HessianChi - HessianUpsilon;
+	HessianN = HessianEpsilon + HessianXi - HessianChi + HessianUpsilon;
+	// HessianN = HessianXi - HessianChi + HessianUpsilon;
 
-	return HessianN * (-1);
+	return HessianN;
 }
 

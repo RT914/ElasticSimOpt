@@ -72,7 +72,7 @@ Eigen::MatrixXd calHessianEpsilon(const Square& square, const Eigen::VectorXd& r
                 // HessianEpsilon += I(単位行列) * rho / (dt * dt) *  WeightIXi の計算
                 for (int col = 0; col < dimensions; col++) { // 列数
                     for (int row = 0; row < dimensions; row++) { // 行数
-                        double term = rho / pow(dt, 2) * identityMatrix(row, col) * WeightIXi * volume_element;
+                        double term = - rho / pow(dt, 2) * identityMatrix(row, col) * WeightIXi * volume_element;
                         if (abs(term) < 1e-10) continue;
                         HessianEpsilon(3 * i + row, 3 * xi + col) += term;
                     }

@@ -19,7 +19,6 @@ Square createSquare(int N)
 	Eigen::Vector3d position;
 	Eigen::Vector3d re_position;
 	Eigen::Vector3i grid_node;
-	// double theta = 0.5;
 	double theta = 1.0;
 	double power = 0.0;
 	velocity << 0.0, 0.0, 0.0;
@@ -31,15 +30,14 @@ Square createSquare(int N)
 	base_point << pos.x() - range, pos.y() - range, pos.z() - range;
 	srand(2);
 
-	// double c = 1.0 * 0.1;
-
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 
 				// 可変の座標：mpmの粒子点と同義
 				
-				double x;
+				// 剪断変形1
+				/*double x;
 				if (k == 0) {
 					x = i * dx + base_point.x() + 0.1;
 				}
@@ -49,10 +47,38 @@ Square createSquare(int N)
 				else {
 					x = i * dx + base_point.x();
 				}
-				
-				// double x = i * dx + base_point.x();
 				double y = j * dx + base_point.y();
-				double z = k * dx + base_point.z();
+				double z = k * dx + base_point.z();*/
+
+				// 剪断変形2
+				/*double x = i * dx + base_point.x();
+				double y = j * dx + base_point.y();
+				double z;
+				if (i == 0) {
+					z = k * dx + base_point.z() + 0.1;
+				}
+				else if (i == 2) {
+					z = k * dx + base_point.z() - 0.1;
+				}
+				else {
+					z = k * dx + base_point.z();
+				}*/
+				
+
+				// 体積変形(膨張状態)
+				double x = i * dx * 1.1 + base_point.x();
+				double y = j * dx * 1.1 + base_point.y();
+				double z = k * dx * 1.1 + base_point.z();
+
+				// 体積変形(縮小状態)
+				/*double x = i * dx * 0.9 + base_point.x();
+				double y = j * dx * 0.9 + base_point.y();
+				double z = k * dx * 0.9 + base_point.z();*/
+				
+				// 初期状態
+				/*double x = i * dx + base_point.x();
+				double y = j * dx + base_point.y();
+				double z = k * dx + base_point.z();*/
 
 				// 不変の座標：mpmの格子点と同義
 				double re_x = i * dx + base_point.x();

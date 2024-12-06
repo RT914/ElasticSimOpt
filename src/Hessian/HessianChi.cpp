@@ -71,34 +71,34 @@ Eigen::MatrixXd calHessianChi1(const Square& square, const Eigen::VectorXd& re_p
             // 体積変化率の計算
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -2.0/3.0);
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // 内挿関数の計算
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
-                double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
-                double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
-                double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
-                double w_i_3 = hat_x_i * hat_y_i * diff_hat_z_i;
+                double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
+                double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
+                double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
 
-                double WeightIXi = w_i_1 * w_xi_1 + w_i_2 * w_xi_2 + w_i_3 * w_xi_3;
+                double WeightTauXi = w_tau_1 * w_xi_1 + w_tau_2 * w_xi_2 + w_tau_3 * w_xi_3;
 
                 // 単位行列
                 Eigen::Matrix3d identityMatrix = Eigen::Matrix3d::Identity();
 
                 for (int col = 0; col < dimensions; col++) { // 列数（横の数）
                     for (int row = 0; row < dimensions; row++) { // 行数（縦の数）
-                        double term = mu * detF * WeightIXi * identityMatrix(row, col) * volume_element;
+                        double term = mu * detF * WeightTauXi * identityMatrix(row, col) * volume_element;
                         if (abs(term) < 1e-10) continue;
-                        HessianChi1(3 * i + row, 3 * xi + col) += term;
+                        HessianChi1(3 * xi + row, 3 * tau + col) += term;
                     }
                 }
 
@@ -131,7 +131,7 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
     }
 
     // 係数の初期化
-    Eigen::MatrixXd Phi_KL = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd Phi_KL = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
 
     // 係数の計算
     // 現在座標phiの計算
@@ -142,8 +142,8 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
             double Phi3 = phi(3 * k) * phi(3 * l + 1) - phi(3 * k + 1) * phi(3 * l);
             Eigen::Vector3d Phi = { Phi1, Phi2, Phi3 };
 
-            for (int p = 0; p < dimensions; p++) {
-                Phi_KL(3 * k + p, l) = Phi(p);
+            for (int a = 0; a < dimensions; a++) {
+                Phi_KL(k, 3 * l + a) = Phi(a);
             }
         }
     }
@@ -181,25 +181,25 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
             // 体積変化率の計算
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -5.0 / 3.0);
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // i関連の内挿関数の計算
-                double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_i(2));
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
-                double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
-                double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
-                double w_i_3 = hat_x_i * hat_y_i * diff_hat_z_i;
+                double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
+                double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
+                double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
 
-                Eigen::Vector3d WeightIJ = Eigen::Vector3d::Zero();
+                Eigen::Vector3d WeightJTau = Eigen::Vector3d::Zero();
                 Eigen::Vector3d WeightKLXi = Eigen::Vector3d::Zero();
 
                 for (int j = 0; j < NumberOfParticles; j++) {
@@ -220,8 +220,8 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
                     double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
                     double w_j_3 = hat_x_j * hat_y_j * diff_hat_z_j;
 
-                    for (int p = 0; p < dimensions; p++) {
-                        WeightIJ(p) += phi(3 * j + p) * (w_i_1 * w_j_1 + w_i_2 * w_j_2 + w_i_3 * w_j_3);
+                    for (int a = 0; a < dimensions; a++) {
+                        WeightJTau(a) += phi(3 * j + a) * (w_tau_1 * w_j_1 + w_tau_2 * w_j_2 + w_tau_3 * w_j_3);
                     }
 
                 }
@@ -263,8 +263,8 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
                         double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
                         double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
 
-                        for (int p = 0; p < dimensions; p++) {
-                            WeightKLXi(p) += Phi_KL(3 * k + p, l)
+                        for (int a = 0; a < dimensions; a++) {
+                            WeightKLXi(a) += Phi_KL(k, 3 * l + a)
                                 * (w_k_2 * w_l_3 * w_xi_1 - w_k_1 * w_l_3 * w_xi_2 + w_k_1 * w_l_2 * w_xi_3);
                         }
 
@@ -273,9 +273,9 @@ Eigen::MatrixXd calHessianChi2(const Square& square, const Eigen::VectorXd& re_p
 
                 for (int col = 0; col < dimensions; col++) { // 列数（横の数）
                     for (int row = 0; row < dimensions; row++) { // 行数（縦の数）
-                        double term = mu * detF * WeightIJ(col) * WeightKLXi(row) * volume_element;
+                        double term = mu * detF * WeightJTau(row) * WeightKLXi(col) * volume_element;
                         if (abs(term) < 1e-10) continue;
-                        HessianChi2(3 * i + row, 3 * xi + col) += term;
+                        HessianChi2(3 * xi + row, 3 * tau + col) += term;
                     }
                 }
 
@@ -309,7 +309,7 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
 
     // 係数の初期化
 
-    Eigen::MatrixXd Phi_KL = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
+    Eigen::MatrixXd Phi_KL = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
 
     // 係数の計算
     // 現在座標phiの計算
@@ -320,8 +320,8 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
             double Phi3 = phi(3 * k) * phi(3 * l + 1) - phi(3 * k + 1) * phi(3 * l);
             Eigen::Vector3d Phi = { Phi1, Phi2, Phi3 };
 
-            for (int p = 0; p < dimensions; p++) {
-                Phi_KL(k, 3 * l + p) = Phi(p);
+            for (int a = 0; a < dimensions; a++) {
+                Phi_KL(3 * k + a, l) = Phi(a);
             }
         }
     }
@@ -359,25 +359,25 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
             // 体積変化率の計算
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -5.0 / 3.0);
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
-                // i関連の内挿関数の計算
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double diff_hat_x_i = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double diff_hat_y_i = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
-                double diff_hat_z_i = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                // tau関連の内挿関数の計算
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
-                double w_i_1 = diff_hat_x_i * hat_y_i * hat_z_i;
-                double w_i_2 = hat_x_i * diff_hat_y_i * hat_z_i;
-                double w_i_3 = hat_x_i * hat_y_i * diff_hat_z_i;
+                double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
+                double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
+                double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
 
-                Eigen::Vector3d WeightIJ = Eigen::Vector3d::Zero();
+                Eigen::Vector3d WeightJTau = Eigen::Vector3d::Zero();
                 Eigen::Vector3d WeightKLXi = Eigen::Vector3d::Zero();
 
                 for (int j = 0; j < NumberOfParticles; j++) {
@@ -398,8 +398,8 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
                     double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
                     double w_j_3 = hat_x_j * hat_y_j * diff_hat_z_j;
 
-                    for (int p = 0; p < dimensions; p++) {
-                        WeightIJ(p) += phi(3 * j + p) * (w_i_1 * w_j_1 + w_i_2 * w_j_2 + w_i_3 * w_j_3);
+                    for (int a = 0; a < dimensions; a++) {
+                        WeightJTau(a) += phi(3 * j + a) * (w_tau_1 * w_j_1 + w_tau_2 * w_j_2 + w_tau_3 * w_j_3);
                     }
 
                 }
@@ -441,8 +441,8 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
                         double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
                         double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
 
-                        for (int p = 0; p < dimensions; p++) {
-                            WeightKLXi(p) += Phi_KL(k, 3 * l + p) 
+                        for (int a = 0; a < dimensions; a++) {
+                            WeightKLXi(a) += Phi_KL(3 * k + a, l) 
                                 * (w_k_2 * w_l_3 * w_xi_1 - w_k_1 * w_l_3 * w_xi_2 + w_k_1 * w_l_2 * w_xi_3);
                         }
 
@@ -452,12 +452,11 @@ Eigen::MatrixXd calHessianChi3(const Square& square, const Eigen::VectorXd& re_p
                 // 単位行列
                 Eigen::Matrix3d identityMatrix = Eigen::Matrix3d::Identity();
 
-                // HessianChi3 += - mu * pow(J, (-5/3)) * WeightIJ * WeightKLXi.transpose() の計算
                 for (int col = 0; col < dimensions; col++) { // 列数（横の数）
                     for (int row = 0; row < dimensions; row++) { // 行数（縦の数）
-                        double term = (-1) * 2.0/ 3.0 * mu * detF * WeightIJ(row) * WeightKLXi(col) * identityMatrix(row, col) * volume_element;
+                        double term = -2.0 / 3.0 * mu * detF * WeightKLXi(row) * WeightJTau(col) * volume_element;
                         if (abs(term) < 1e-10) continue;
-                        HessianChi3(3 * i + row, 3 * xi + col) += term;
+                        HessianChi3(3 * xi + row, 3 * tau + col) += term;
                     }
                 }
 

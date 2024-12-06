@@ -11,16 +11,20 @@ Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi
     Eigen::VectorXd Gradientd(3 * NumberOfParticles);
     Gradientd.setZero();
 
-    Eigen::VectorXd GradientG1 = calGradientG1(square, re_phi, phi, phi_previous);
+    // Eigen::VectorXd GradientG1 = calGradientG1(square, re_phi, phi, phi_previous);
 
     Eigen::VectorXd GradientG2 = calGradientG2(square, re_phi, phi, power);
 
-    Gradientd = - GradientG1 + GradientG2;
+    // std::cout << "GradientG2 : " << std::endl;
+    // std::cout << GradientG2 << std::endl;
+
+    // Gradientd = - GradientG1 - GradientG2;
+    Gradientd = - GradientG2;
 
     // std::cout << "Gradientd" << std::endl;
     // std::cout << Gradientd << std::endl;
 
-    return Gradientd * (-1);
+    return Gradientd;
 }
 
 Eigen::VectorXd calGradientG1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous) {
@@ -85,7 +89,7 @@ Eigen::VectorXd calGradientG1(const Square& square, const Eigen::VectorXd& re_ph
 
                         for (int p = 0; p < dimensions; p++) {
                             WeightIXi(3 * xi + p)
-                                += ( - phi(3 * i + p) + phi_previous(3 * i + p) ) * term1 * term2;
+                                += ( phi(3 * i + p) - phi_previous(3 * i + p) ) * term1 * term2;
                         }
 
                         // GradientG1 += rho / (dt * dt) * WeightIXi.transpose()) ‚ÌŒvŽZ
@@ -114,7 +118,14 @@ Eigen::VectorXd calGradientG2(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd GradientG2_3 = calGradientG2_3(square, re_phi, phi, power);
 
-    // Eigen::VectorXd GradientG2 = GradientG2_1 + GradientG2_2 + GradientG2_3;
+    // std::cout << "GradientG2_1 + GradientG2_2" << std::endl;
+    // std::cout << GradientG2_1 + GradientG2_2 << std::endl;
+
+    // std::cout << std::endl;
+
+    // std::cout << "GradientG2_3" << std::endl;
+    // std::cout << GradientG2_3 << std::endl;
+
     Eigen::VectorXd GradientG2 = GradientG2_1 + GradientG2_2 + GradientG2_3;
 
     return GradientG2;
@@ -200,7 +211,7 @@ Eigen::VectorXd calGradientG2_1(const Square& square, const Eigen::VectorXd& re_
                     }
 
                     for (int row = 0; row < dimensions; row++) { // s”
-                        GradientG2_1(3 * xi + row) += -mu * volume_element * WeightIXi(3 * xi + row) * detF;
+                        GradientG2_1(3 * xi + row) += - mu * volume_element * WeightIXi(3 * xi + row) * detF;
                     }
 
                 }
@@ -435,7 +446,6 @@ Eigen::VectorXd calGradientG2_3(const Square& square, const Eigen::VectorXd& re_
             for (int zd = 0; zd < kNum; zd++) {
                 Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
                 Eigen::VectorXd WeightIJXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
-                Eigen::VectorXd WeightK = Eigen::VectorXd::Zero(NumberOfParticles);
 
                 // Stencil Base‚ÌŒvŽZ
                 Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
@@ -457,6 +467,8 @@ Eigen::VectorXd calGradientG2_3(const Square& square, const Eigen::VectorXd& re_
                     double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_xi(1));
                     double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
                     double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+
+                    double WeightK = 0.0;
 
                     for (int i = 0; i < NumberOfParticles; i++) {
                         Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
@@ -519,13 +531,13 @@ Eigen::VectorXd calGradientG2_3(const Square& square, const Eigen::VectorXd& re_
                         // Še€‚ÌŒvŽZ
                         double w_k = hat_x_k * hat_y_k * hat_z_k;
 
-                        WeightK(xi) += power(k) * w_k;
+                        WeightK += power(k) * w_k;
 
                     }
 
                     // GradientG2_3 += WeightIJXi.transpose() * WeightK ‚ÌŒvŽZ
                     for (int col = 0; col < dimensions; col++) { // —ñ”
-                        GradientG2_3(3 * xi + col) += WeightIJXi(3 * xi + col) * WeightK(xi) * volume_element;
+                        GradientG2_3(3 * xi + col) += WeightIJXi(3 * xi + col) * WeightK * volume_element;
                     }
 
                 }

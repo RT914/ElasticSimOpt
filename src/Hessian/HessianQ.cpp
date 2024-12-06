@@ -50,32 +50,30 @@ Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi)
             double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
             double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
 
-            for (int i = 0; i < NumberOfParticles; i++) {
-                Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                if (!allElementsWithinOne(i_minus_xi)) continue;
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvŽZ
-                double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
                 // Še€‚ÌŒvŽZ
-                double w_i = hat_x_i * hat_y_i * hat_z_i;
+                double w_tau = hat_x_tau * hat_y_tau * hat_z_tau;
                 double w_xi = hat_x_xi * hat_y_xi * hat_z_xi;
 
-                double WeightIXi = w_i * w_xi;
+                double WeightTauXi = w_tau * w_xi;
 
-                // HessianQ -= WeightIXi ‚ÌŒvŽZ
-                double term = WeightIXi * volume_element;
+                double term = WeightTauXi * volume_element;
                 if (abs(term) > 1e-10) {
-                    HessianQ(i, xi) -= term;
+                    HessianQ(xi, tau) -= term;
                 }
 
             }
         }
-
 
     }
 

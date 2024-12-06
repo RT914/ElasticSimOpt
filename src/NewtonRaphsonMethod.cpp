@@ -13,6 +13,8 @@
 #include "../include/FEM.h"
 #include "../Window/Window.h"
 #include "../Camera/Camera.h"
+#include "../Draw/Draw.h"
+
 // 出力確認のためのinclude
 #include "../include/utils/Interpolation_util.h"
 
@@ -72,20 +74,13 @@ Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, 
         std::cerr << "NaN detected Matrix R" << std::endl;
     }
 
-    // Calculation Hessian
-    Eigen::MatrixXd MatrixN_t = MatrixN.transpose();
-    Eigen::MatrixXd MatrixO_t = MatrixO.transpose();
-    Eigen::MatrixXd MatrixP_t = MatrixP.transpose();
-    Eigen::MatrixXd MatrixQ_t = MatrixQ.transpose();
-    Eigen::MatrixXd MatrixR_t = MatrixR.transpose();
-
     // Set HessianS using blocks
-    MatrixS.block(0, 0, 3 * NumberOfParticles, 3 * NumberOfParticles) = MatrixN_t;
-    MatrixS.block(0, 4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles) = MatrixO_t;
-    MatrixS.block(3 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixR_t;
-    MatrixS.block(3 * NumberOfParticles, 4 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ_t;
-    MatrixS.block(4 * NumberOfParticles, 0, NumberOfParticles, 3 * NumberOfParticles) = MatrixP_t;
-    MatrixS.block(4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ_t;
+    MatrixS.block(0, 0, 3 * NumberOfParticles, 3 * NumberOfParticles) = MatrixN;
+    MatrixS.block(0, 4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles) = MatrixO;
+    MatrixS.block(3 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixR;
+    MatrixS.block(3 * NumberOfParticles, 4 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ;
+    MatrixS.block(4 * NumberOfParticles, 0, NumberOfParticles, 3 * NumberOfParticles) = MatrixP;
+    MatrixS.block(4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ;
 
     exportMatrix_CSV(MatrixS, "csv/MatrixS.csv");
 
@@ -143,7 +138,6 @@ Eigen::VectorXd Newton(Square square) {
     double NormVectorDelta = 1.0;
     int SquarePointsNumber = square.points.size();
 
-
     // 変位
     Eigen::VectorXd barphi(3 * NumberOfParticles);
     Eigen::VectorXd doublebarphi(3 * NumberOfParticles);
@@ -170,8 +164,19 @@ Eigen::VectorXd Newton(Square square) {
 
     // Gradient
     Eigen::VectorXd Vectore;
+
     
     while (NormVectorDelta > 1.0e-5) {
+
+        std::cout << "反復回数：　" << looptimes << "回" << std::endl;
+
+        /*for (int i = 0; i < NumberOfParticles; i++) {
+            std::cout << i << "----------------------" << std::endl;
+            std::cout << barphi(3 * i) << std::endl;
+            std::cout << barphi(3 * i + 1) << std::endl;
+            std::cout << barphi(3 * i + 2) << std::endl;
+        }
+        std::cout << std::endl;*/
 
         // Hessian
         MatrixS = calMatrixS(square, re_phi, barphi, barpower, bartheta);
@@ -180,13 +185,27 @@ Eigen::VectorXd Newton(Square square) {
 
         // Gradient
         Vectore = calVectore(square, re_phi, barphi, doublebarphi, barpower, bartheta);
+        // std::cout << "Vectore : " << std::endl;
+        // std::cout << Vectore << std::endl;
 
-        Eigen::FullPivLU<Eigen::MatrixXd> LU(MatrixS);
+        /*Eigen::FullPivLU<Eigen::MatrixXd> LU(MatrixS);
+        Eigen::VectorXd VectorDelta = LU.solve(Vectore);*/
+
+        Eigen::FullPivLU<Eigen::MatrixXd> LU;
+        LU.compute(MatrixS);
         Eigen::VectorXd VectorDelta = LU.solve(Vectore);
 
-        VectorDelta = - VectorDelta;
+        /*Eigen::JacobiSVD<Eigen::MatrixXd> svd(MatrixS, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        Eigen::VectorXd VectorDelta = svd.solve(Vectore);*/
 
-        VectorDelta *= lambda;
+        // std::cout << "VectorDelta : " << std::endl;
+        // std::cout << VectorDelta << std::endl;
+
+        // VectorDelta = - VectorDelta;
+
+        // VectorDelta *= 0.2;
+
+        // std::cout << VectorDelta << std::endl;
 
         Eigen::VectorXd VectorDeltaPhi(3 * NumberOfParticles);
         Eigen::VectorXd VectorDeltaTheta(NumberOfParticles);
@@ -204,6 +223,20 @@ Eigen::VectorXd Newton(Square square) {
         // Set VectorDeltaPower
         VectorDeltaPower = VectorDelta.segment(NumberOfParticles * 4, NumberOfParticles);
 
+        /*std::cout << "DeltaPhi : " << std::endl;
+        for (int i = 0; i < NumberOfParticles; i++) {
+            std::cout << i << "----------------------" << std::endl;
+            std::cout << VectorDeltaPhi(3 * i) << std::endl;
+            std::cout << VectorDeltaPhi(3 * i + 1) << std::endl;
+            std::cout << VectorDeltaPhi(3 * i + 2) << std::endl;
+        }
+        std::cout << std::endl;*/
+        
+        /*std::cout << "DeltaTheta : " << std::endl;
+        std::cout << VectorDeltaTheta << std::endl;
+        std::cout << "DeltaPower : " << std::endl;
+        std::cout << VectorDeltaPower << std::endl;*/
+
         NormVectorDelta = VectorDelta.norm();
         NormVectorDeltaPhi = VectorDeltaPhi.norm();
         NormVectorDeltaTheta = VectorDeltaTheta.norm();
@@ -211,99 +244,92 @@ Eigen::VectorXd Newton(Square square) {
 
         std::cout << "Norm : " << NormVectorDelta << std::endl;
 
+        /*
         //Line Search with Wolfe
         double sigma = 0.5;
-        double eps1 = 1.0e-4;
-        double eps2 = 0.9;
-        
-        int line_search_times = 1;
-
-        /*
+        double eps1 = 0.5;
+        double lambda = 1.0;
+        int line_search_times = 0;
 
         // CSVファイルのオープン
-        std::ofstream csv_file("csv/line_search_results.csv");
-        csv_file << "Iteration,lambda,f_prime.norm(),f.norm() + eps1 * lambda * nabla_f_p.norm(),nabla_f_prime_p.norm(),eps2 * nabla_f_p.norm()\n";
+        // std::ofstream csv_file("csv/line_search_results.csv");
+        // csv_file << "Iteration,lambda,f_prime.norm(),f.norm() + eps1 * lambda * nabla_f_p.norm(),nabla_f_prime_p.norm(),eps2 * nabla_f_p.norm()\n";
 
         // 初期化
         Eigen::VectorXd barphi_prime = VectorDeltaPhi * lambda + barphi;
         Eigen::VectorXd bartheta_prime = VectorDeltaTheta * lambda + bartheta;
         Eigen::VectorXd barpower_prime = VectorDeltaPower * lambda + barpower;
 
-        Eigen::MatrixXd MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
         Eigen::VectorXd Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
 
-        // Armijo & curvature 条件の計算
+        // Armijo 条件の計算
         Eigen::VectorXd f_prime = Vectore_prime;
         Eigen::VectorXd f = Vectore;
-        Eigen::VectorXd nabla_f_p = MatrixS * VectorDeltaPhi;
-        Eigen::VectorXd nabla_f_prime_p = MatrixS_prime * VectorDeltaPhi;
+        Eigen::VectorXd nabla_f_p = MatrixS * VectorDelta;
 
-        // Armijo & curvature
-        while (!(f_prime.norm() <= f.norm() + eps1 * lambda * nabla_f_p.norm() &&
-            nabla_f_prime_p.norm() >= eps2 * nabla_f_p.norm())) {
+        // Armijo 条件
+        // while ( !(checkArmijo(f_prime, f + eps1 * lambda * nabla_f_p)) ) {
+        while ( !( f_prime.norm() <= (f + eps1 * lambda * nabla_f_p).norm()) ) {
 
             // CSVへの出力
-            exportLineSearch_CSV(csv_file, line_search_times, lambda, f_prime.norm(),
-                f.norm() + eps1 * lambda * nabla_f_p.norm(),
-                nabla_f_prime_p.norm(), eps2 * nabla_f_p.norm());
+            // exportLineSearch_CSV(csv_file, line_search_times, lambda, f_prime.norm(), f.norm() + eps1 * lambda * nabla_f_p.norm(), nabla_f_prime_p.norm(), eps2 * nabla_f_p.norm());
 
-            std::cout << "f_prime.norm() : " << f_prime.norm() << std::endl;
-            std::cout << "f.norm() + eps1 * lambda * nabla_f_p.norm() : " << f.norm() + eps1 * lambda * nabla_f_p.norm() << std::endl;
-            std::cout << "nabla_f_prime_p.norm() : " << nabla_f_prime_p.norm() << std::endl;
-            std::cout << "eps2 * nabla_f_p.norm() : " << eps2 * nabla_f_p.norm() << std::endl;
-            std::cout << std::endl;
+            // std::cout << "line search time : " << line_search_times++ << std::endl;
+            // std::cout << "Armijo : " << std::endl;
+            // std::cout << f_prime - (f + eps1 * lambda * nabla_f_p) << std::endl;
+            // std::cout << std::endl;
 
+            // std::cout << f_prime.norm() << std::endl;
+            // std::cout << (f + eps1 * lambda * nabla_f_p).norm() << std::endl;
+
+            // 更新幅の更新
             lambda *= sigma;
 
-            // 更新
+            // 各要素の更新
             barphi_prime = VectorDeltaPhi * lambda + barphi;
             bartheta_prime = VectorDeltaTheta * lambda + bartheta;
             barpower_prime = VectorDeltaPower * lambda + barpower;
 
-            MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
             Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
 
-            // Armijo & curvature 条件の再計算
+            // Armijo 条件の再計算
             f_prime = Vectore_prime;
             f = Vectore;
-            nabla_f_p = MatrixS * VectorDeltaPhi;
-            nabla_f_prime_p = MatrixS_prime * VectorDeltaPhi;
+            nabla_f_p = MatrixS * VectorDelta;
 
-            line_search_times++;
             std::cout << "lambda : " << lambda << "\n";
         }
-
-
-        exportLineSearch_CSV(csv_file, line_search_times, lambda, f_prime.norm(),
-            f.norm() + eps1 * lambda * nabla_f_p.norm(),
-            nabla_f_prime_p.norm(), eps2 * nabla_f_p.norm());
-        csv_file.close();
-
-        std::cout << "result:" << std::endl;
-        std::cout << "f_prime.norm() : " << f_prime.norm() << std::endl;
-        std::cout << "f.norm() : " << f.norm() << std::endl;
-        std::cout << "nabla_f_prime_p.norm() : " << nabla_f_prime_p.norm() << std::endl;
-        std::cout << "eps2 * nabla_f_p.norm() : " << eps2 * nabla_f_p.norm() << std::endl;
-        std::cout << std::endl;
         */
-
 
         // Update
         // doublebarphi = barphi;
-        barphi += VectorDeltaPhi * lambda;
-        bartheta += VectorDeltaTheta * lambda;
-        barpower += VectorDeltaPower * lambda;
+        barphi += lambda * VectorDeltaPhi;
+        bartheta += lambda * VectorDeltaTheta;
+        barpower += lambda * VectorDeltaPower;
+
+        // Update
+        // doublebarphi = barphi;
+        barphi += VectorDeltaPhi;
+        bartheta += VectorDeltaTheta;
+        barpower += VectorDeltaPower;
 
         // barpower = Eigen::VectorXd::Zero(NumberOfParticles);
 
         // std::cout << "barphi : " << barphi << std::endl;
         // std::cout << "bartheta : " << bartheta << std::endl;
 
+        // 各反復での画像出力
+        /*for (int i = 0; i < NumberOfParticles; i++) {
+            square.points[i].position[0] = barphi(3 * i);
+            square.points[i].position[1] = barphi(3 * i + 1);
+            square.points[i].position[2] = barphi(3 * i + 2);
+        }
+        renderAndSave(square, looptimes);*/
+
         looptimes++;
+        std::cout << std::endl;
 
-        std::cout << "反復回数：　" << looptimes << "回" << std::endl;
-
-        // if (looptimes > 5) break;
+        // if (looptimes > 2) break;
     }
     
 
@@ -389,16 +415,17 @@ Eigen::VectorXd NewtonIteration(Square square) {
                     Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
                     // 体積変化率の計算
-                    double detF = calRiemannJ(cal_point, grid_xi, re_phi, barphi, NumberOfParticles, -2.0 / 3.0);
+                    double detF = calRiemannJ(cal_point, grid_xi, re_phi, barphi, NumberOfParticles, 1.0);
                     std::cout << "detF : " << detF << std::endl;
                 }
             }
         }
     }
-    */    
+    */
 
     /* -- test -- */
 
+    
     // Hessian
     Eigen::MatrixXd MatrixS = Eigen::MatrixXd::Zero(5 * NumberOfParticles, 5 * NumberOfParticles);
 
@@ -443,20 +470,13 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // std::cout << MatrixN << std::endl;
 
-    // Calculation Hessian
-    Eigen::MatrixXd MatrixN_t = MatrixN.transpose();
-    Eigen::MatrixXd MatrixO_t = MatrixO.transpose();
-    Eigen::MatrixXd MatrixP_t = MatrixP.transpose();
-    Eigen::MatrixXd MatrixQ_t = MatrixQ.transpose();
-    Eigen::MatrixXd MatrixR_t = MatrixR.transpose();
-
     // Set HessianS using blocks
-    MatrixS.block(0, 0, 3 * NumberOfParticles, 3 * NumberOfParticles) = MatrixN_t;
-    MatrixS.block(0, 4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles) = MatrixO_t;
-    MatrixS.block(3 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixR_t;
-    MatrixS.block(3 * NumberOfParticles, 4 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ_t;
-    MatrixS.block(4 * NumberOfParticles, 0, NumberOfParticles, 3 * NumberOfParticles) = MatrixP_t;
-    MatrixS.block(4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ_t;
+    MatrixS.block(0, 0, 3 * NumberOfParticles, 3 * NumberOfParticles) = MatrixN;
+    MatrixS.block(0, 4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles) = MatrixO;
+    MatrixS.block(3 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixR;
+    MatrixS.block(3 * NumberOfParticles, 4 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ;
+    MatrixS.block(4 * NumberOfParticles, 0, NumberOfParticles, 3 * NumberOfParticles) = MatrixP;
+    MatrixS.block(4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ;
 
     exportMatrix_CSV(MatrixS, "csv/MatrixS.csv");
 
@@ -468,12 +488,18 @@ Eigen::VectorXd NewtonIteration(Square square) {
         std::cerr << "NaN detected Vector b" << std::endl;
     }
 
+    // std::cout << "Vectorb : " << std::endl;
+    // std::cout << Vectorb << std::endl;
+
     // Vectorc(NumberOfParticles)
     Eigen::VectorXd Vectorc = calGradientc(square, re_phi, barphi, barpower, bartheta);
     exportVector_CSV(Vectorc, "csv/Vectorc.csv");
     if (Vectorc.array().isNaN().any()) {
         std::cerr << "NaN detected Vector c" << std::endl;
     }
+
+    // std::cout << "Vectorc : " << std::endl;
+    // std::cout << Vectorc << std::endl;
 
     // Vectord(NumberOfParticles)
     Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
@@ -482,6 +508,7 @@ Eigen::VectorXd NewtonIteration(Square square) {
         std::cerr << "NaN detected Vector d" << std::endl;
     }
 
+    // std::cout << "Vectord : " << std::endl;
     // std::cout << Vectord << std::endl;
 
     // Set Vectore
@@ -489,10 +516,15 @@ Eigen::VectorXd NewtonIteration(Square square) {
     Vectore.segment(3 * NumberOfParticles, NumberOfParticles) = Vectorc;
     Vectore.tail(NumberOfParticles) = Vectorb;
 
+    // std::cout << "-----------------------------------------" << std::endl;
+    // std::cout << "Vectore : " << std::endl;
+    // std::cout << Vectore << std::endl;
+
     exportVector_CSV(Vectore, "csv/Vectore.csv");
 
     Eigen::FullPivLU<Eigen::MatrixXd> LU(MatrixS);
     Eigen::VectorXd VectorDelta = LU.solve(Vectore);
+    
 
     Eigen::VectorXd VectorDeltaPhi(3 * NumberOfParticles);
     Eigen::VectorXd VectorDeltaTheta(NumberOfParticles);
@@ -509,6 +541,15 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // Set VectorDeltaPower
     VectorDeltaPower = VectorDelta.segment(NumberOfParticles * 4, NumberOfParticles);
 
+    // std::cout << "VectorDeltaTheta : " << std::endl;
+    // std::cout << VectorDeltaTheta << std::endl;
+
+    // std::cout << "VectorDeltaPower : " << std::endl;
+    // std::cout << VectorDeltaPower << std::endl;
+
+    // std::cout << "VectorDelta : " << std::endl;
+    // std::cout << VectorDelta << std::endl;
+
     exportVector_CSV(VectorDeltaPhi, "csv/VectorDeltaPhi.csv");
     exportVector_CSV(VectorDeltaTheta, "csv/VectorDeltaTheta.csv");
     exportVector_CSV(VectorDeltaPower, "csv/VectorDeltaPower.csv");
@@ -519,11 +560,11 @@ Eigen::VectorXd NewtonIteration(Square square) {
     NormVectorDeltaPower = VectorDeltaPower.norm();
 
     std::cout << "Vector Norm: " << NormVectorDelta << std::endl;
-
-    Eigen::VectorXd update_phi(3 * NumberOfParticles);
+    
+    Eigen::VectorXd update_phi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
     Eigen::VectorXd update_theta(NumberOfParticles);
     Eigen::VectorXd update_power(NumberOfParticles);
-
+    
     // Update
     update_phi = barphi + VectorDeltaPhi;
     exportVector_CSV(update_phi, "csv/update_phi.csv");
@@ -532,17 +573,12 @@ Eigen::VectorXd NewtonIteration(Square square) {
     update_power = barpower + VectorDeltaPower;
     exportVector_CSV(update_power, "csv/update_power.csv");
 
-    // calculation equation H
-    Eigen::VectorXd Equation_H = MatrixP_t * VectorDeltaPhi + MatrixQ_t * VectorDeltaTheta - Vectorb;
-    exportVector_CSV(Equation_H, "csv/Equation_H.csv");
-    Eigen::VectorXd Equation_Gamma = MatrixQ_t * VectorDeltaPower + MatrixR_t * VectorDeltaTheta - Vectorc;
-    exportVector_CSV(Equation_Gamma, "csv/Equation_Gamma.csv");
-
     // 実行時間の測定終了
     auto end = std::chrono::high_resolution_clock::now();
     // 実行時間の計算
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
+
 
     return update_phi;
 }
@@ -621,33 +657,44 @@ void checkHessian(const Eigen::MatrixXd& H) {
     }
 }
 
+// Line Search 条件式
+bool checkArmijo(const Eigen::VectorXd VectorA, const Eigen::VectorXd VectorB) {
+    for (int i = 0; i < VectorA.size(); i++) {
+        if (VectorA(i) > VectorB(i)) {
+            return false;
+        }
+    }
 
-// 描画を強制的に行う関数
-void renderOnce() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    return true;
+}
+
+// 描画と画像保存を統合した関数
+void renderAndSave(Square square, int repetitionTime) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // バッファの消去
 
     // カメラの更新を反映
     projection_and_modelview(g_Camera);
 
     // 描画処理（例: 原点に赤い点を描画）
-    glColor3f(1.0, 0.0, 0.0);
-    glPointSize(5.0);
-    glBegin(GL_POINTS);
-    glVertex3f(0.0f, 0.0f, 0.0f);
-    glEnd();
+    glColor3f(0.5, 0.0, 0.0);
+    drawSquare(square, 10.0);
+    Ground();
 
+    // 描画を強制的に行う
     glFlush();
     glutSwapBuffers();
-}
 
-// 画像を保存する関数
-void saveImageAsPPM(const std::string& filename) {
+    // 画像保存
     std::vector<unsigned char> pixels(3 * WindowWidth * WindowHeight);
 
     // OpenGL からピクセルデータを取得
     glReadPixels(0, 0, WindowWidth, WindowHeight, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
 
-    // ファイルに書き出し
+    // ファイル名の生成
+    char filename[100];
+    snprintf(filename, sizeof(filename), "result/output_image_%d.ppm", repetitionTime);
+
+    // PPM形式で保存
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file for writing." << std::endl;
@@ -665,3 +712,4 @@ void saveImageAsPPM(const std::string& filename) {
     file.close();
     std::cout << "Image saved as " << filename << std::endl;
 }
+
