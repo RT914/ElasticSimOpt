@@ -16,8 +16,8 @@ void drawPoint(double x, double y, double z, float size) {
 }
 
 void drawVector(Eigen::Vector3d StartPoint, Eigen::Vector3d EndPoint, float width) {
-	glLineWidth(width);
 	glColor3d(0.0, 0.0, 1.0);
+	glLineWidth(width);
 	glBegin(GL_LINES);
 	glVertex3d(StartPoint(0), StartPoint(1), StartPoint(2));
 	glVertex3d(EndPoint(0), EndPoint(1), EndPoint(2));
@@ -109,7 +109,7 @@ void drawSquareAndVector(Square square, Eigen::VectorXd update_phi, float scale_
 	float vector_length = 3.0;
 
 	// ベクトルを正規化しますか？ (1: 正規化する, 0: そのまま)
-	int norm = 1;
+	int norm = 0;
 
 	// 頂点間の線の描画と点の描画
 	for (int i = 0; i < square.points.size(); i++) {

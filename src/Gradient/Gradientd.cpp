@@ -11,7 +11,7 @@ Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi
     Eigen::VectorXd Gradientd(3 * NumberOfParticles);
     Gradientd.setZero();
 
-    // Eigen::VectorXd GradientG1 = calGradientG1(square, re_phi, phi, phi_previous);
+    Eigen::VectorXd GradientG1 = calGradientG1(square, re_phi, phi, phi_previous);
 
     Eigen::VectorXd GradientG2 = calGradientG2(square, re_phi, phi, power);
 

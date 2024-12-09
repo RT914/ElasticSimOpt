@@ -32,6 +32,7 @@
 
 extern Camera g_Camera;
 int looptimes = 0;
+double EPSILON = 1e-2;
 
 Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta) 
 {
@@ -166,7 +167,7 @@ Eigen::VectorXd Newton(Square square) {
     Eigen::VectorXd Vectore;
 
     
-    while (NormVectorDelta > 1.0e-5) {
+    while (NormVectorDelta > 1.0e-2) {
 
         std::cout << "反復回数：　" << looptimes << "回" << std::endl;
 
@@ -331,14 +332,30 @@ Eigen::VectorXd Newton(Square square) {
 
         // if (looptimes > 2) break;
     }
-    
+
+    // 3×3×3の各角頂点情報の抽出
+    std::vector<Eigen::Vector3d> vertices;
+    for (int i = 0; i < SquarePointsNumber; i++) {
+        if (i == 0 || i ==2 || i == 6 || i == 8 || i == 18 || i == 20 || i == 24 || i == 26 ) {
+            Eigen::Vector3d vector = { barphi(3 * i), barphi(3 * i + 1), barphi(3 * i + 2) };
+            vertices.emplace_back(vector);
+        }
+    }
+
+    double edgeLength = 0.0;
+    if (isCube(vertices, edgeLength)) {
+        std::cout << "これは立方体です。" << std::endl;
+        std::cout << "辺の長さ: " << edgeLength << std::endl;
+    }
+    else {
+        std::cout << "これは立方体ではありません。" << std::endl;
+    }
 
     // 実行時間の測定終了
     auto end = std::chrono::high_resolution_clock::now();
     // 実行時間の計算
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
-
 
     return barphi;
 }
@@ -516,9 +533,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
     Vectore.segment(3 * NumberOfParticles, NumberOfParticles) = Vectorc;
     Vectore.tail(NumberOfParticles) = Vectorb;
 
-    // std::cout << "-----------------------------------------" << std::endl;
-    // std::cout << "Vectore : " << std::endl;
-    // std::cout << Vectore << std::endl;
+    std::cout << "-----------------------------------------" << std::endl;
+    std::cout << "Vectore : " << std::endl;
+    std::cout << Vectore << std::endl;
 
     exportVector_CSV(Vectore, "csv/Vectore.csv");
 
@@ -713,3 +730,75 @@ void renderAndSave(Square square, int repetitionTime) {
     std::cout << "Image saved as " << filename << std::endl;
 }
 
+// ベクトルの長さを計算
+double calculateDistance(const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
+    return (a - b).norm();
+}
+
+// ベクトルが直交しているかを判定
+bool isOrthogonal(const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
+    return std::abs(a.dot(b)) < EPSILON;
+}
+
+// 辺の長さを基準に頂点が立方体かどうか判定
+bool isCube(const std::vector<Eigen::Vector3d>& vertices, double& edgeLength) {
+    if (vertices.size() != 8) {
+        std::cerr << "頂点数が8ではありません。" << std::endl;
+        return false;
+    }
+
+    // 頂点間の全ての距離を計算
+    std::vector<double> distances;
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        for (size_t j = i + 1; j < vertices.size(); ++j) {
+            distances.push_back(calculateDistance(vertices[i], vertices[j]));
+        }
+    }
+
+    // 距離を小さい順にソート
+    std::sort(distances.begin(), distances.end());
+
+    // 辺の長さ、面対角線の長さ、空間対角線の長さを分類
+    for (int i = 0; i < 12; i++) {
+        edgeLength += distances[i];
+    }
+    // std::cout << edgeLength/ distances.size() << std::endl;
+    // edgeLength = distances[0];
+    edgeLength = edgeLength / 12;
+
+    double faceDiagonal = edgeLength * std::sqrt(2);
+    double spaceDiagonal = edgeLength * std::sqrt(3);
+
+    // 辺の長さ、面対角線、空間対角線の本数をカウント
+    int edgeCount = std::count_if(distances.begin(), distances.end(),
+        [edgeLength](double d) { return std::abs(d - edgeLength) < EPSILON; });
+    int faceDiagonalCount = std::count_if(distances.begin(), distances.end(),
+        [faceDiagonal](double d) { return std::abs(d - faceDiagonal) < EPSILON; });
+    int spaceDiagonalCount = std::count_if(distances.begin(), distances.end(),
+        [spaceDiagonal](double d) { return std::abs(d - spaceDiagonal) < EPSILON; });
+
+    // 本数がそれぞれ正しいかを確認
+    if (edgeCount != 12 || faceDiagonalCount != 12 || spaceDiagonalCount != 4) {
+        return false;
+    }
+
+    // 各頂点から直交する3つのベクトルを確認
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        std::vector<Eigen::Vector3d> edges;
+        for (size_t j = 0; j < vertices.size(); ++j) {
+            if (i != j && std::abs(calculateDistance(vertices[i], vertices[j]) - edgeLength) < EPSILON) {
+                edges.push_back(vertices[j] - vertices[i]);
+            }
+        }
+
+        // 直交条件を確認
+        if (edges.size() != 3 ||
+            !isOrthogonal(edges[0], edges[1]) ||
+            !isOrthogonal(edges[0], edges[2]) ||
+            !isOrthogonal(edges[1], edges[2])) {
+            return false;
+        }
+    }
+
+    return true;
+}

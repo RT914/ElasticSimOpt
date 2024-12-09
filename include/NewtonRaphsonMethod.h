@@ -20,5 +20,8 @@ void checkHessian(const Eigen::MatrixXd& H);
 bool checkArmijo(const Eigen::VectorXd VectorA, const Eigen::VectorXd VectorB);
 void createDirectoryIfNeeded(const std::string& dirPath);
 void renderAndSave(Square square, int repetitionTime);
+double calculateDistance(const Eigen::Vector3d& a, const Eigen::Vector3d& b);
+bool isOrthogonal(const Eigen::Vector3d& a, const Eigen::Vector3d& b);
+bool isCube(const std::vector<Eigen::Vector3d>& vertices, double& edgeLength);
 
 #endif

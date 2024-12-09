@@ -64,11 +64,10 @@ Square createSquare(int N)
 					z = k * dx + base_point.z();
 				}*/
 				
-
 				// ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
-				double x = i * dx * 1.1 + base_point.x();
-				double y = j * dx * 1.1 + base_point.y();
-				double z = k * dx * 1.1 + base_point.z();
+				double x = i * dx * 2.0 + base_point.x();
+				double y = j * dx * 2.0 + base_point.y();
+				double z = k * dx * 2.0 + base_point.z();
 
 				// ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
 				/*double x = i * dx * 0.9 + base_point.x();

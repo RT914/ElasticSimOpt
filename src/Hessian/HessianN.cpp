@@ -45,8 +45,8 @@ Eigen::MatrixXd calHessianN(const Square& square, const Eigen::VectorXd& re_phi,
 		std::cerr << "NaN detected HessianUpsilon" << std::endl;
 	}
 
-	HessianN = HessianEpsilon + HessianXi - HessianChi + HessianUpsilon;
-	// HessianN = HessianXi - HessianChi + HessianUpsilon;
+	// HessianN = HessianEpsilon + HessianXi - HessianChi + HessianUpsilon;
+	HessianN = HessianXi - HessianChi + HessianUpsilon;
 
 	return HessianN;
 }
