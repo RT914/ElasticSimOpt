@@ -17,8 +17,6 @@ void exportMatrix_CSV(Eigen::MatrixXd M, std::string file_name);
 void exportVector_CSV(Eigen::VectorXd V, std::string file_name);
 void exportLineSearch_CSV(std::ofstream& file, int line_search_times, double lambda, double f_prime_norm, double armijo_rhs, double nabla_f_prime_p_norm, double curvature_rhs);
 void checkHessian(const Eigen::MatrixXd& H);
-bool checkArmijo(const Eigen::VectorXd VectorA, const Eigen::VectorXd VectorB);
-void createDirectoryIfNeeded(const std::string& dirPath);
 void renderAndSave(Square square, int repetitionTime);
 double calculateDistance(const Eigen::Vector3d& a, const Eigen::Vector3d& b);
 bool isOrthogonal(const Eigen::Vector3d& a, const Eigen::Vector3d& b);

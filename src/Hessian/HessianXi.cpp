@@ -14,7 +14,7 @@ Eigen::MatrixXd calHessianXi(const Square& square, const Eigen::VectorXd& re_phi
     if (HessianXi1.array().isNaN().any()) {
         std::cerr << "NaN detected HessianXi1" << std::endl;
     }
-    exportMatrix_CSV(HessianXi1, "csv/HessianXi1.csv");
+    // exportMatrix_CSV(HessianXi1, "csv/HessianXi1.csv");
 
     Eigen::MatrixXd HessianXi2 = calHessianXi2(square, re_phi, phi);
     if (HessianXi2.array().isNaN().any()) {

@@ -8,8 +8,8 @@ using namespace std;
 
 struct Point
 {
-	Point(Eigen::Vector3d& pos, Eigen::Vector3d& re_pos, Eigen::Vector3d& vel, double& t, Eigen::Vector3i& gri, double& p)
-		: position(pos), reference_position(re_pos), velocity(vel), theta(t), grid_node(gri), power(p) {};
+	Point(Eigen::Vector3d& pos, Eigen::Vector3d& re_pos, Eigen::Vector3d& v, double& t, Eigen::Vector3i& gri, double& p)
+		: position(pos), reference_position(re_pos), velocity(v), theta(t), grid_node(gri), power(p) {};
 
 	Eigen::Vector3d position;
 	Eigen::Vector3d reference_position;

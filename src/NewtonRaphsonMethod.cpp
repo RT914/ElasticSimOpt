@@ -130,12 +130,7 @@ Eigen::VectorXd Newton(Square square) {
     // 実行時間の測定開始
     auto start = std::chrono::high_resolution_clock::now();
 
-    double lambda = 0.2;
-
     // 最適化計算の初期化
-    double NormVectorDeltaPhi = 1.0;
-    double NormVectorDeltaTheta = 1.0;
-    double NormVectorDeltaPower = 1.0;
     double NormVectorDelta = 1.0;
     int SquarePointsNumber = square.points.size();
 
@@ -150,6 +145,9 @@ Eigen::VectorXd Newton(Square square) {
     Eigen::VectorXd barpower(NumberOfParticles);
     // 体積変化率
     Eigen::VectorXd bartheta(NumberOfParticles);
+
+    // 誤差
+    std::vector<double> NormVec;
 
     // 座標の取得
     for (int i = 0; i < SquarePointsNumber; i++) {
@@ -166,52 +164,27 @@ Eigen::VectorXd Newton(Square square) {
     // Gradient
     Eigen::VectorXd Vectore;
 
+    // 初期値のレンダリング
+    renderAndSave(square, looptimes);
     
     while (NormVectorDelta > 1.0e-2) {
 
-        std::cout << "反復回数：　" << looptimes << "回" << std::endl;
-
-        /*for (int i = 0; i < NumberOfParticles; i++) {
-            std::cout << i << "----------------------" << std::endl;
-            std::cout << barphi(3 * i) << std::endl;
-            std::cout << barphi(3 * i + 1) << std::endl;
-            std::cout << barphi(3 * i + 2) << std::endl;
-        }
-        std::cout << std::endl;*/
+        std::cout << "反復回数：　" << ++looptimes << "回" << std::endl;
 
         // Hessian
         MatrixS = calMatrixS(square, re_phi, barphi, barpower, bartheta);
 
-        // checkHessian(MatrixS);
-
         // Gradient
         Vectore = calVectore(square, re_phi, barphi, doublebarphi, barpower, bartheta);
-        // std::cout << "Vectore : " << std::endl;
-        // std::cout << Vectore << std::endl;
-
-        /*Eigen::FullPivLU<Eigen::MatrixXd> LU(MatrixS);
-        Eigen::VectorXd VectorDelta = LU.solve(Vectore);*/
 
         Eigen::FullPivLU<Eigen::MatrixXd> LU;
         LU.compute(MatrixS);
         Eigen::VectorXd VectorDelta = LU.solve(Vectore);
 
-        /*Eigen::JacobiSVD<Eigen::MatrixXd> svd(MatrixS, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        Eigen::VectorXd VectorDelta = svd.solve(Vectore);*/
-
-        // std::cout << "VectorDelta : " << std::endl;
-        // std::cout << VectorDelta << std::endl;
-
-        // VectorDelta = - VectorDelta;
-
-        // VectorDelta *= 0.2;
-
-        // std::cout << VectorDelta << std::endl;
-
+        // 探索方向ベクトルの定義
         Eigen::VectorXd VectorDeltaPhi(3 * NumberOfParticles);
         Eigen::VectorXd VectorDeltaTheta(NumberOfParticles);
         Eigen::VectorXd VectorDeltaPower(NumberOfParticles);
-
 
         // Set VectorDeltaPhi
         for (int i = 0; i < NumberOfParticles; i++) {
@@ -224,72 +197,69 @@ Eigen::VectorXd Newton(Square square) {
         // Set VectorDeltaPower
         VectorDeltaPower = VectorDelta.segment(NumberOfParticles * 4, NumberOfParticles);
 
-        /*std::cout << "DeltaPhi : " << std::endl;
-        for (int i = 0; i < NumberOfParticles; i++) {
-            std::cout << i << "----------------------" << std::endl;
-            std::cout << VectorDeltaPhi(3 * i) << std::endl;
-            std::cout << VectorDeltaPhi(3 * i + 1) << std::endl;
-            std::cout << VectorDeltaPhi(3 * i + 2) << std::endl;
-        }
-        std::cout << std::endl;*/
-        
-        /*std::cout << "DeltaTheta : " << std::endl;
-        std::cout << VectorDeltaTheta << std::endl;
-        std::cout << "DeltaPower : " << std::endl;
-        std::cout << VectorDeltaPower << std::endl;*/
-
         NormVectorDelta = VectorDelta.norm();
-        NormVectorDeltaPhi = VectorDeltaPhi.norm();
-        NormVectorDeltaTheta = VectorDeltaTheta.norm();
-        NormVectorDeltaPower = VectorDeltaPower.norm();
 
         std::cout << "Norm : " << NormVectorDelta << std::endl;
-
-        /*
+        NormVec.push_back(NormVectorDelta);
+        
         //Line Search with Wolfe
-        double sigma = 0.5;
-        double eps1 = 0.5;
+        double sigma_armijo = 0.5;
+        double sigma_curvature = 1.2;
+        double eps1 = 1e-2;
+        double eps2 = 0.9;
         double lambda = 1.0;
         int line_search_times = 0;
-
-        // CSVファイルのオープン
-        // std::ofstream csv_file("csv/line_search_results.csv");
-        // csv_file << "Iteration,lambda,f_prime.norm(),f.norm() + eps1 * lambda * nabla_f_p.norm(),nabla_f_prime_p.norm(),eps2 * nabla_f_p.norm()\n";
 
         // 初期化
         Eigen::VectorXd barphi_prime = VectorDeltaPhi * lambda + barphi;
         Eigen::VectorXd bartheta_prime = VectorDeltaTheta * lambda + bartheta;
         Eigen::VectorXd barpower_prime = VectorDeltaPower * lambda + barpower;
 
+        Eigen::MatrixXd MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
         Eigen::VectorXd Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
 
-        // Armijo 条件の計算
+        // Armijo条件 & 曲率条件の計算
         Eigen::VectorXd f_prime = Vectore_prime;
         Eigen::VectorXd f = Vectore;
         Eigen::VectorXd nabla_f_p = MatrixS * VectorDelta;
+        Eigen::VectorXd nabla_f_prime_p = MatrixS_prime * VectorDelta;
 
-        // Armijo 条件
-        // while ( !(checkArmijo(f_prime, f + eps1 * lambda * nabla_f_p)) ) {
-        while ( !( f_prime.norm() <= (f + eps1 * lambda * nabla_f_p).norm()) ) {
+        // Armijo条件
+        while ( !( f_prime.norm() <= (f + eps1 * lambda * nabla_f_p).norm() ) ) {
 
-            // CSVへの出力
-            // exportLineSearch_CSV(csv_file, line_search_times, lambda, f_prime.norm(), f.norm() + eps1 * lambda * nabla_f_p.norm(), nabla_f_prime_p.norm(), eps2 * nabla_f_p.norm());
+            // 曲率条件
+            //while ( !(nabla_f_prime_p.norm() <= eps2 * nabla_f_p.norm()) ) {
 
-            // std::cout << "line search time : " << line_search_times++ << std::endl;
-            // std::cout << "Armijo : " << std::endl;
-            // std::cout << f_prime - (f + eps1 * lambda * nabla_f_p) << std::endl;
-            // std::cout << std::endl;
+            //    std::cout << "  直線探索 反復回数：　" << ++line_search_times << "回" << std::endl;
 
-            // std::cout << f_prime.norm() << std::endl;
-            // std::cout << (f + eps1 * lambda * nabla_f_p).norm() << std::endl;
+            //    // 更新幅の更新
+            //    lambda *= sigma_curvature;
+
+            //    std::cout << "  lambda : " << lambda << "\n";
+
+            //    // 各要素の更新
+            //    barphi_prime = VectorDeltaPhi * lambda + barphi;
+            //    bartheta_prime = VectorDeltaTheta * lambda + bartheta;
+            //    barpower_prime = VectorDeltaPower * lambda + barpower;
+
+            //    MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
+
+            //    // 曲率条件の再計算
+            //    nabla_f_prime_p = MatrixS_prime * VectorDelta;
+            //    nabla_f_p = MatrixS * VectorDelta;
+            //}
+            
+            std::cout << "  直線探索 反復回数：　" << ++line_search_times << "回" << std::endl;
 
             // 更新幅の更新
-            lambda *= sigma;
+            lambda *= sigma_armijo;
+
+            std::cout << "  lambda : " << lambda << "\n";
 
             // 各要素の更新
             barphi_prime = VectorDeltaPhi * lambda + barphi;
             bartheta_prime = VectorDeltaTheta * lambda + bartheta;
-            barpower_prime = VectorDeltaPower * lambda + barpower;
+            barpower_prime = VectorDeltaPower * lambda + barpower;   
 
             Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
 
@@ -297,41 +267,28 @@ Eigen::VectorXd Newton(Square square) {
             f_prime = Vectore_prime;
             f = Vectore;
             nabla_f_p = MatrixS * VectorDelta;
-
-            std::cout << "lambda : " << lambda << "\n";
         }
-        */
+        std::cout << std::endl;       
 
         // Update
-        // doublebarphi = barphi;
         barphi += lambda * VectorDeltaPhi;
         bartheta += lambda * VectorDeltaTheta;
         barpower += lambda * VectorDeltaPower;
 
-        // Update
-        // doublebarphi = barphi;
-        barphi += VectorDeltaPhi;
-        bartheta += VectorDeltaTheta;
-        barpower += VectorDeltaPower;
-
-        // barpower = Eigen::VectorXd::Zero(NumberOfParticles);
-
-        // std::cout << "barphi : " << barphi << std::endl;
-        // std::cout << "bartheta : " << bartheta << std::endl;
-
         // 各反復での画像出力
-        /*for (int i = 0; i < NumberOfParticles; i++) {
+        for (int i = 0; i < NumberOfParticles; i++) {
             square.points[i].position[0] = barphi(3 * i);
             square.points[i].position[1] = barphi(3 * i + 1);
             square.points[i].position[2] = barphi(3 * i + 2);
         }
-        renderAndSave(square, looptimes);*/
+        renderAndSave(square, looptimes);
 
-        looptimes++;
-        std::cout << std::endl;
-
+        // 指定反復数で終了
         // if (looptimes > 2) break;
     }
+
+    Eigen::VectorXd vec = Eigen::Map<Eigen::VectorXd>(NormVec.data(), NormVec.size());
+    exportVector_CSV(vec, "csv/NormVec.csv");
 
     // 3×3×3の各角頂点情報の抽出
     std::vector<Eigen::Vector3d> vertices;
@@ -394,54 +351,8 @@ Eigen::VectorXd NewtonIteration(Square square) {
         bartheta(i) = square.points[i].theta;
     }
 
-    /* -- test -- */
-    /*
-    const int kNumSection = 3; // 各区間の分割数
-    const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
-    const double volume_element = pow(kWidth, 3);
-
-    Eigen::VectorXd cal_points(kNum);
-    int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
-        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
-            // std::cout << cal_points(index) << std::endl;
-            index++;
-        }
-    }
-
-
-    for (int xd = 0; xd < kNum; xd++) {
-        for (int yd = 0; yd < kNum; yd++) {
-            for (int zd = 0; zd < kNum; zd++) {
-                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
-
-                // Stencil Baseの計算
-                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
-                std::cout << "Stencil Base: " << stencil_base.transpose() << std::endl;
-
-                // Stencil行列とstencil_numの生成
-                Eigen::MatrixXi stencil;
-                std::vector<int> stencil_num = generateStencil(stencil_base, stencil);
-
-                // 体積変化率の計算
-                for (int xi = 0; xi < NumberOfParticles; xi++) {
-                    if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
-                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
-                    Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
-
-                    // 体積変化率の計算
-                    double detF = calRiemannJ(cal_point, grid_xi, re_phi, barphi, NumberOfParticles, 1.0);
-                    std::cout << "detF : " << detF << std::endl;
-                }
-            }
-        }
-    }
-    */
-
-    /* -- test -- */
-
+    // 初期値のレンダリング
+    renderAndSave(square, looptimes);
     
     // Hessian
     Eigen::MatrixXd MatrixS = Eigen::MatrixXd::Zero(5 * NumberOfParticles, 5 * NumberOfParticles);
@@ -533,15 +444,14 @@ Eigen::VectorXd NewtonIteration(Square square) {
     Vectore.segment(3 * NumberOfParticles, NumberOfParticles) = Vectorc;
     Vectore.tail(NumberOfParticles) = Vectorb;
 
-    std::cout << "-----------------------------------------" << std::endl;
-    std::cout << "Vectore : " << std::endl;
-    std::cout << Vectore << std::endl;
+    // std::cout << "-----------------------------------------" << std::endl;
+    // std::cout << "Vectore : " << std::endl;
+    // std::cout << Vectore << std::endl;
 
     exportVector_CSV(Vectore, "csv/Vectore.csv");
 
     Eigen::FullPivLU<Eigen::MatrixXd> LU(MatrixS);
     Eigen::VectorXd VectorDelta = LU.solve(Vectore);
-    
 
     Eigen::VectorXd VectorDeltaPhi(3 * NumberOfParticles);
     Eigen::VectorXd VectorDeltaTheta(NumberOfParticles);
@@ -558,11 +468,11 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // Set VectorDeltaPower
     VectorDeltaPower = VectorDelta.segment(NumberOfParticles * 4, NumberOfParticles);
 
-    // std::cout << "VectorDeltaTheta : " << std::endl;
-    // std::cout << VectorDeltaTheta << std::endl;
+    std::cout << "VectorDeltaTheta : " << std::endl;
+    std::cout << VectorDeltaTheta << std::endl;
 
-    // std::cout << "VectorDeltaPower : " << std::endl;
-    // std::cout << VectorDeltaPower << std::endl;
+    std::cout << "VectorDeltaPower : " << std::endl;
+    std::cout << VectorDeltaPower << std::endl;
 
     // std::cout << "VectorDelta : " << std::endl;
     // std::cout << VectorDelta << std::endl;
@@ -595,7 +505,6 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // 実行時間の計算
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
-
 
     return update_phi;
 }
@@ -672,17 +581,6 @@ void checkHessian(const Eigen::MatrixXd& H) {
     else {
         std::cout << "ヘッセ行列は正定値ではありません。探索方向を再評価する必要があります。" << std::endl;
     }
-}
-
-// Line Search 条件式
-bool checkArmijo(const Eigen::VectorXd VectorA, const Eigen::VectorXd VectorB) {
-    for (int i = 0; i < VectorA.size(); i++) {
-        if (VectorA(i) > VectorB(i)) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 // 描画と画像保存を統合した関数
