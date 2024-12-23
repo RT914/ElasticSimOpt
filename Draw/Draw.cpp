@@ -31,7 +31,7 @@ void drawVector(Eigen::Vector3d StartPoint, Eigen::Vector3d EndPoint, float widt
 //----------------------------------------------------
 void drawSquare(Square square, float scale_factor)
 {
-	int N = square.one_dimension_point_number;
+	int N = square.SideNumber + 1;
 	float point_size = 3.0;
 
 	// “_‚Ì•`‰æ
@@ -103,7 +103,7 @@ void drawSquare(Square square, float scale_factor)
 //----------------------------------------------------
 void drawSquareAndVector(Square square, Eigen::VectorXd update_phi, float scale_factor)
 {
-	int N = square.one_dimension_point_number;
+	int N = square.SideNumber + 1;
 	float point_size = 3.0;
 	float vector_width = 3.0;
 	float vector_length = 3.0;

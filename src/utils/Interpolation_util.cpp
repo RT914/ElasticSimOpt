@@ -56,9 +56,9 @@ Eigen::Vector3i FlatToGrid(int flat_index)
 Eigen::Vector3d calculateStencilBase(const Eigen::Vector3d& cal_point) {
     // 負の方向への丸め込み（格子の始点が原点のため補正）
     return Eigen::Vector3d(
-        std::floor(cal_point(0)) + 1,
-        std::floor(cal_point(1)) + 1,
-        std::floor(cal_point(2)) + 1
+        std::floor((cal_point(0) + 1) / (2.0 / 3.0)),
+        std::floor((cal_point(1) + 1) / (2.0 / 3.0)),
+        std::floor((cal_point(2) + 1) / (2.0 / 3.0))
     );
 }
 
@@ -85,6 +85,7 @@ std::vector<int> generateStencil(const Eigen::Vector3d& stencil_base, Eigen::Mat
 
 double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid_xi, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, int NumberOfParticles, double exp)
 {
+    // 2/3は瀬部て格子間距離である。これを一般化したい。（12/23現在）
     double f_ijk = 0.0;
 
     for (int k = 0; k < NumberOfParticles; k++) {
@@ -94,9 +95,9 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
         Eigen::Vector3d grid_point_coordinates_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
 
         // k関連の内挿関数の計算
-        double f_k_3 = HatFunction(cal_point(0) - grid_point_coordinates_k(0)) *
-            HatFunction(cal_point(1) - grid_point_coordinates_k(1)) *
-            DifferentialHatFunction(cal_point(2) - grid_point_coordinates_k(2));
+        double f_k_3 = HatFunction((cal_point(0) - grid_point_coordinates_k(0)) / (2.0 / 3.0)) *
+            HatFunction((cal_point(1) - grid_point_coordinates_k(1)) / (2.0 / 3.0)) *
+            DifferentialHatFunction((cal_point(2) - grid_point_coordinates_k(2)) / (2.0 / 3.0));
 
         for (int j = 0; j < NumberOfParticles; j++) {
             Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
@@ -105,9 +106,9 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
             Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
             // j関連の内挿関数の計算
-            double f_j_2 = HatFunction(cal_point(0) - grid_point_coordinates_j(0)) *
-                DifferentialHatFunction(cal_point(1) - grid_point_coordinates_j(1)) *
-                HatFunction(cal_point(2) - grid_point_coordinates_j(2));
+            double f_j_2 = HatFunction((cal_point(0) - grid_point_coordinates_j(0)) / (2.0 / 3.0)) *
+                DifferentialHatFunction((cal_point(1) - grid_point_coordinates_j(1)) / (2.0 / 3.0)) *
+                HatFunction((cal_point(2) - grid_point_coordinates_j(2)) / (2.0 / 3.0));
 
             for (int i = 0; i < NumberOfParticles; i++) {
                 Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
@@ -116,15 +117,16 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
                 Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                 // i関連の内挿関数の計算
-                double f_i_1 = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0)) *
-                    HatFunction(cal_point(1) - grid_point_coordinates_i(1)) *
-                    HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                double f_i_1 = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_i(0)) / (2.0 / 3.0)) *
+                    HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / (2.0 / 3.0)) *
+                    HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / (2.0 / 3.0));
 
                 double Phi0 = phi(3 * i) * (phi(3 * j + 1) * phi(3 * k + 2) - phi(3 * j + 2) * phi(3 * k + 1))
                     + phi(3 * i + 1) * (phi(3 * j + 2) * phi(3 * k) - phi(3 * j) * phi(3 * k + 2))
                     + phi(3 * i + 2) * (phi(3 * j) * phi(3 * k + 1) - phi(3 * j + 1) * phi(3 * k));
 
-                f_ijk += Phi0 * f_i_1 * f_j_2 * f_k_3;
+                f_ijk += Phi0 * f_i_1 * f_j_2 * f_k_3 * (1.0 / pow(2.0 / 3.0, 3));
+                // std::cout << f_ijk << std::endl;
             }
 
         }

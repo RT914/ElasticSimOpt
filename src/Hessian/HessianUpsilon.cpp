@@ -34,15 +34,16 @@ Eigen::MatrixXd calHessianUpsilon1(const Square& square, const Eigen::VectorXd& 
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -212,15 +213,16 @@ Eigen::MatrixXd calHessianUpsilon2(const Square& square, const Eigen::VectorXd& 
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -466,15 +468,16 @@ Eigen::MatrixXd calHessianUpsilon3(const Square& square, const Eigen::VectorXd& 
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }

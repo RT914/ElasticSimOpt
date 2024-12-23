@@ -28,14 +28,6 @@ Eigen::MatrixXd calHessianXi(const Square& square, const Eigen::VectorXd& re_phi
 
     HessianXi = HessianXi1 + HessianXi2 + HessianXi3;
 
-    /*std::cout << "HessianXi2 + HessianXi3" << std::endl;
-    for (int i = 0; i < 3 * NumberOfParticles; i++) {
-        for (int j = 0; j < 3 * NumberOfParticles; j++) {
-            if(abs(HessianXi2(i,j)+HessianXi3(i,j))>1e-10)
-                std::cout << HessianXi2(i, j) + HessianXi3(i, j) << std::endl;
-        }
-    }*/
-
     return HessianXi;
 }
 
@@ -46,15 +38,16 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -293,15 +286,16 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -337,9 +331,10 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
         // Stencil Baseの計算
         Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
 
-        // Stencil行列とstencil_numの生成
+        // Stencil行列とstencil_numの生成 
         Eigen::MatrixXi stencil;
         std::vector<int> stencil_num = generateStencil(stencil_base, stencil);
+        // std::cout << "----------------------------" << std::endl;
 
         for (int xi = 0; xi < NumberOfParticles; xi++) {
             if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
@@ -356,6 +351,7 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
 
             // 体積変化率の計算
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -5.0 / 3.0);
+            // std::cout << detF << std::endl;
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
                 Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
@@ -471,15 +467,16 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
 
     const int kNumSection = 3; // 各区間の分割数
     const double kWidth = square.dx / kNumSection; // 分割の正規化
-    const int kNum = 2 * kNumSection; // 全区間の分割数
+    const int kNum = square.SideNumber * kNumSection; // 全区間の分割数
     const int AllkNum = pow(kNum, 3);// 全次元の全区間分割数
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }

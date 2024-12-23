@@ -21,12 +21,12 @@ struct Point
 
 struct Square
 {
-	Square(Eigen::Vector3d& pos, double delta_x, int one_d_point_num) : position(pos), dx(delta_x), one_dimension_point_number(one_d_point_num) {};
+	Square(Eigen::Vector3d& pos, double delta_x, int SideNumber) : position(pos), dx(delta_x), SideNumber(SideNumber) {};
 
 	Eigen::Vector3d position;
 	vector<Point> points;
 	double dx;
-	int one_dimension_point_number;
+	int SideNumber;
 };
 
 Square createSquare(int particles);

@@ -30,14 +30,15 @@ Eigen::VectorXd calGradientb1(const Square& square, const Eigen::VectorXd& re_ph
 
     const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
     const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
-    const int kNum = 2 * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const int kNum = square.SideNumber * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
     const double volume_element = pow(kWidth, 3);
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        int offset_value = -1 + offset * square.dx;
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }

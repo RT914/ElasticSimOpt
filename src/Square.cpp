@@ -12,9 +12,9 @@ Square createSquare(int N)
 	Eigen::Vector3d pos;
 	pos << 0.0, 0.0, 0.0;
 	int one_d_point_num = N;
-	double range = (N - 1) / 2.0;
-	double dx = 2 * range / (N - 1);
-	Square square(pos, dx, one_d_point_num);
+	int SideNumber = N - 1;
+	double dx = 2.0 / SideNumber; // ŠiŽqŠÔ‹——£
+	Square square(pos, dx, SideNumber);
 	Eigen::Vector3d position;
 	Eigen::Vector3d re_position;
 	Eigen::Vector3d velocity;
@@ -23,55 +23,34 @@ Square createSquare(int N)
 	double theta = 1.0;
 	double power = 0.0;
 
+	// ™’’f•ÏŒ`‚Ì•Ï‰»”{—¦ iŠiŽqŠÔ‹——£~•Ï‰»”{—¦j
+	double magnification = 0.5;
+
 	double square_x = square.position(0);
 	double square_y = square.position(1);
 	double square_z = square.position(2);
 	Eigen::Vector3d base_point;
-	base_point << pos.x() - range, pos.y() - range, pos.z() - range;
+	// base_point << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0; // ŽQÆÀ•W‚Æ“™‚µ‚¢
 	// base_point << pos.x() - 0.5, pos.y() - 0.5, pos.z() - 0.5; // ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
-	// base_point << pos.x() - 1.5, pos.y() - 1.5, pos.z() - 1.5; // ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
+	// base_point << pos.x() - 1.2, pos.y() - 1.2, pos.z() - 1.2; // ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
+	base_point << pos.x() - 1.0 - magnification * dx, pos.y() - 1.0, pos.z() - 1.0; // ™’’f•ÏŒ`
 	Eigen::Vector3d base_refpoint;
-	base_refpoint << pos.x() - range, pos.y() - range, pos.z() - range;
-	srand(2);
+	base_refpoint << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0;
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			for (int k = 0; k < N; k++) {
 
 				// ‰Â•Ï‚ÌÀ•WFmpm‚Ì—±Žq“_‚Æ“¯‹`
-				
-				// ™’’f•ÏŒ`1
-				double x;
-				if (k == 0) {
-					x = i * dx + base_point.x() + 0.5;
-				}
-				else if (k == 2) {
-					x = i * dx + base_point.x() - 0.5;
-				}
-				else {
-					x = i * dx + base_point.x();
-				}
+				// ™’’f•ÏŒ`
+				double x = i * dx + base_point.x() + 2 * magnification * dx / SideNumber * k;
 				double y = j * dx + base_point.y();
 				double z = k * dx + base_point.z();
-
-				// ™’’f•ÏŒ`2
-				/*double x = i * dx + base_point.x();
-				double y = j * dx + base_point.y();
-				double z;
-				if (i == 0) {
-					z = k * dx + base_point.z() + 0.1;
-				}
-				else if (i == 2) {
-					z = k * dx + base_point.z() - 0.1;
-				}
-				else {
-					z = k * dx + base_point.z();
-				}*/
 				
 				// ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
-				/*double x = i * dx * 1.5 + base_point.x();
-				double y = j * dx * 1.5 + base_point.y();
-				double z = k * dx * 1.5 + base_point.z();*/
+				/*double x = i * dx * 1.2 + base_point.x();
+				double y = j * dx * 1.2 + base_point.y();
+				double z = k * dx * 1.2 + base_point.z();*/
 
 				// ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
 				/*double x = i * dx * 0.5 + base_point.x();
