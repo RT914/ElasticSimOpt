@@ -14,7 +14,6 @@ Eigen::MatrixXd calHessianXi(const Square& square, const Eigen::VectorXd& re_phi
     if (HessianXi1.array().isNaN().any()) {
         std::cerr << "NaN detected HessianXi1" << std::endl;
     }
-    // exportMatrix_CSV(HessianXi1, "csv/HessianXi1.csv");
 
     Eigen::MatrixXd HessianXi2 = calHessianXi2(square, re_phi, phi);
     if (HessianXi2.array().isNaN().any()) {
@@ -44,10 +43,9 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -119,155 +117,133 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
             // ëÃêœïœâªó¶ÇÃåvéZ
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -1.0);
 
-            for (int xi = 0; xi < NumberOfParticles; xi++) {
-                if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
-                Eigen::Vector3i grid_xi = FlatToGrid(xi);
-                Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+            for (int tau = 0; tau < NumberOfParticles; tau++) {
+                Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
+                if (!allElementsWithinOne(tau_minus_xi)) continue;
 
-                // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-                double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-                double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-                double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-                double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
-                double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+                Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
-                double w_xi_1 = diff_hat_x_xi * hat_y_xi * hat_z_xi;
-                double w_xi_2 = hat_x_xi * diff_hat_y_xi * hat_z_xi;
-                double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
+                // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
+                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
+                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
 
-                // ëÃêœïœâªó¶ÇÃåvéZ
-                double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -1.0);
+                double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
+                double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
+                double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
 
-                for (int tau = 0; tau < NumberOfParticles; tau++) {
-                    Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
-                    if (!allElementsWithinOne(tau_minus_xi)) continue;
+                Eigen::Vector3d WeightLOTau = Eigen::Vector3d::Zero();
+                Eigen::Vector3d WeightNPXi = Eigen::Vector3d::Zero();
+                double WeightI = 0.0;
 
-                    Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
+                for (int l = 0; l < NumberOfParticles; l++) {
+                    Eigen::Vector3i l_minus_xi = FlatToGrid(l) - grid_xi;
+                    if (!allElementsWithinOne(l_minus_xi)) continue;
 
-                    // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                    double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                    double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                    double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                    double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
-                    double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                    Eigen::Vector3d grid_point_coordinates_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
 
-                    double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
-                    double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
-                    double w_tau_3 = hat_x_tau * hat_y_tau * diff_hat_z_tau;
+                    // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                    double hat_x_l = HatFunction(cal_point(0) - grid_point_coordinates_l(0));
+                    double diff_hat_x_l = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_l(0));
+                    double hat_y_l = HatFunction(cal_point(1) - grid_point_coordinates_l(1));
+                    double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_l(1));
+                    double hat_z_l = HatFunction(cal_point(2) - grid_point_coordinates_l(2));
 
-                    Eigen::Vector3d WeightLOTau = Eigen::Vector3d::Zero();
-                    Eigen::Vector3d WeightNPXi = Eigen::Vector3d::Zero();
-                    double WeightI = 0.0;
+                    double w_l_1 = diff_hat_x_l * hat_y_l * hat_z_l;
+                    double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
 
-                    for (int l = 0; l < NumberOfParticles; l++) {
-                        Eigen::Vector3i l_minus_xi = FlatToGrid(l) - grid_xi;
-                        if (!allElementsWithinOne(l_minus_xi)) continue;
+                    for (int o = 0; o < NumberOfParticles; o++) {
+                        Eigen::Vector3i o_minus_xi = FlatToGrid(o) - grid_xi;
+                        if (!allElementsWithinOne(o_minus_xi)) continue;
 
-                        Eigen::Vector3d grid_point_coordinates_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
+                        Eigen::Vector3d grid_point_coordinates_o = { re_phi(3 * o), re_phi(3 * o + 1), re_phi(3 * o + 2) };
 
-                        // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_l = HatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                        double diff_hat_x_l = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                        double hat_y_l = HatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                        double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                        double hat_z_l = HatFunction(cal_point(2) - grid_point_coordinates_l(2));
+                        // oä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                        double hat_x_o = HatFunction(cal_point(0) - grid_point_coordinates_o(0));
+                        double hat_y_o = HatFunction(cal_point(1) - grid_point_coordinates_o(1));
+                        double diff_hat_y_o = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_o(1));
+                        double hat_z_o = HatFunction(cal_point(2) - grid_point_coordinates_o(2));
+                        double diff_hat_z_o = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_o(2));
 
-                        double w_l_1 = diff_hat_x_l * hat_y_l * hat_z_l;
-                        double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
+                        double w_o_2 = hat_x_o * diff_hat_y_o * hat_z_o;
+                        double w_o_3 = hat_x_o * hat_y_o * diff_hat_z_o;
 
-                        for (int o = 0; o < NumberOfParticles; o++) {
-                            Eigen::Vector3i o_minus_xi = FlatToGrid(o) - grid_xi;
-                            if (!allElementsWithinOne(o_minus_xi)) continue;
-
-                            Eigen::Vector3d grid_point_coordinates_o = { re_phi(3 * o), re_phi(3 * o + 1), re_phi(3 * o + 2) };
-
-                            // oä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                            double hat_x_o = HatFunction(cal_point(0) - grid_point_coordinates_o(0));
-                            double hat_y_o = HatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                            double diff_hat_y_o = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                            double hat_z_o = HatFunction(cal_point(2) - grid_point_coordinates_o(2));
-                            double diff_hat_z_o = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_o(2));
-
-                            double w_o_2 = hat_x_o * diff_hat_y_o * hat_z_o;
-                            double w_o_3 = hat_x_o * hat_y_o * diff_hat_z_o;
-
-                            for (int a = 0; a < dimensions; a++) {
-                                WeightLOTau(a) += Phi_LO(l, 3 * o + a) *
-                                    (w_l_2 * w_o_3 * w_tau_1
-                                        - w_l_1 * w_o_3 * w_tau_2
-                                        + w_l_1 * w_o_2 * w_tau_3);
-                            }
-
+                        for (int a = 0; a < dimensions; a++) {
+                            WeightLOTau(a) += Phi_LO(l, 3 * o + a) *
+                                (w_l_2 * w_o_3 * w_tau_1
+                                    - w_l_1 * w_o_3 * w_tau_2
+                                    + w_l_1 * w_o_2 * w_tau_3);
                         }
+
                     }
+                }
 
-                    for (int n = 0; n < NumberOfParticles; n++) {
-                        Eigen::Vector3i n_minus_xi = FlatToGrid(n) - grid_xi;
-                        if (!allElementsWithinOne(n_minus_xi)) continue;
+                for (int n = 0; n < NumberOfParticles; n++) {
+                    Eigen::Vector3i n_minus_xi = FlatToGrid(n) - grid_xi;
+                    if (!allElementsWithinOne(n_minus_xi)) continue;
 
-                        Eigen::Vector3d grid_point_coordinates_n = { re_phi(3 * n), re_phi(3 * n + 1), re_phi(3 * n + 2) };
+                    Eigen::Vector3d grid_point_coordinates_n = { re_phi(3 * n), re_phi(3 * n + 1), re_phi(3 * n + 2) };
 
-                        // nä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_n = HatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                        double diff_hat_x_n = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                        double hat_y_n = HatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double diff_hat_y_n = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double hat_z_n = HatFunction(cal_point(2) - grid_point_coordinates_n(2));
+                    // nä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                    double hat_x_n = HatFunction(cal_point(0) - grid_point_coordinates_n(0));
+                    double diff_hat_x_n = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_n(0));
+                    double hat_y_n = HatFunction(cal_point(1) - grid_point_coordinates_n(1));
+                    double diff_hat_y_n = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_n(1));
+                    double hat_z_n = HatFunction(cal_point(2) - grid_point_coordinates_n(2));
 
-                        double w_n_1 = diff_hat_x_n * hat_y_n * hat_z_n;
-                        double w_n_2 = hat_x_n * diff_hat_y_n * hat_z_n;
+                    double w_n_1 = diff_hat_x_n * hat_y_n * hat_z_n;
+                    double w_n_2 = hat_x_n * diff_hat_y_n * hat_z_n;
 
-                        for (int p = 0; p < NumberOfParticles; p++) {
-                            Eigen::Vector3i p_minus_xi = FlatToGrid(p) - grid_xi;
-                            if (!allElementsWithinOne(p_minus_xi)) continue;
+                    for (int p = 0; p < NumberOfParticles; p++) {
+                        Eigen::Vector3i p_minus_xi = FlatToGrid(p) - grid_xi;
+                        if (!allElementsWithinOne(p_minus_xi)) continue;
 
-                            Eigen::Vector3d grid_point_coordinates_p = { re_phi(3 * p), re_phi(3 * p + 1), re_phi(3 * p + 2) };
+                        Eigen::Vector3d grid_point_coordinates_p = { re_phi(3 * p), re_phi(3 * p + 1), re_phi(3 * p + 2) };
 
-                            // pä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                            double hat_x_p = HatFunction(cal_point(0) - grid_point_coordinates_p(0));
-                            double hat_y_p = HatFunction(cal_point(1) - grid_point_coordinates_p(1));
-                            double diff_hat_y_p = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_p(1));
-                            double hat_z_p = HatFunction(cal_point(2) - grid_point_coordinates_p(2));
-                            double diff_hat_z_p = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_p(2));
+                        // pä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
+                        double hat_x_p = HatFunction(cal_point(0) - grid_point_coordinates_p(0));
+                        double hat_y_p = HatFunction(cal_point(1) - grid_point_coordinates_p(1));
+                        double diff_hat_y_p = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_p(1));
+                        double hat_z_p = HatFunction(cal_point(2) - grid_point_coordinates_p(2));
+                        double diff_hat_z_p = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_p(2));
 
-                            double w_p_2 = hat_x_p * diff_hat_y_p * hat_z_p;
-                            double w_p_3 = hat_x_p * hat_y_p * diff_hat_z_p;
+                        double w_p_2 = hat_x_p * diff_hat_y_p * hat_z_p;
+                        double w_p_3 = hat_x_p * hat_y_p * diff_hat_z_p;
 
-                            for (int a = 0; a < dimensions; a++) {
-                                WeightNPXi(a) += Phi_NP(3 * n + a, p)
-                                    * (w_n_2 * w_p_3 * w_xi_1
-                                        - w_n_1 * w_p_3 * w_xi_2
-                                        + w_n_1 * w_p_2 * w_xi_3);
-                            }
-
+                        for (int a = 0; a < dimensions; a++) {
+                            WeightNPXi(a) += Phi_NP(3 * n + a, p)
+                                * (w_n_2 * w_p_3 * w_xi_1
+                                    - w_n_1 * w_p_3 * w_xi_2
+                                    + w_n_1 * w_p_2 * w_xi_3);
                         }
+
                     }
+                }
 
 
-                    for (int i = 0; i < NumberOfParticles; i++) {
-                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
-                        if (!allElementsWithinOne(i_minus_xi)) continue;
+                for (int i = 0; i < NumberOfParticles; i++) {
+                    Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                    if (!allElementsWithinOne(i_minus_xi)) continue;
 
-                        Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+                    Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
-                        // ì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                        double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                        double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
-                        WeightI += power(i) * hat_x_i * hat_y_i * hat_z_i;
+                    // ì‡ë}ä÷êîÇÃåvéZ
+                    double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
+                    double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
+                    double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                    WeightI += power(i) * hat_x_i * hat_y_i * hat_z_i;
+                }
+
+                // HessianXi1ÇÃåvéZ
+                for (int col = 0; col < dimensions; col++) { // óÒêî
+                    for (int row = 0; row < dimensions; row++) { // çsêî
+                        double term = detF * WeightNPXi(row) * WeightLOTau(col) * WeightI * volume_element;
+                        if (abs(term) < 1e-10) continue;
+                        HessianXi1(3 * xi + row, 3 * tau + col) += term;
                     }
-
-                    // HessianXi1ÇÃåvéZ
-                    for (int col = 0; col < dimensions; col++) { // óÒêî
-                        for (int row = 0; row < dimensions; row++) { // çsêî
-                            double term = detF * WeightNPXi(row) * WeightLOTau(col) * WeightI * volume_element;
-                            if (abs(term) < 1e-10) continue;
-                            HessianXi1(3 * xi + row, 3 * tau + col) += term;
-                        }
-                    }
-
                 }
 
             }
@@ -278,6 +254,7 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
 
     return  HessianXi1;
 }
+
 
 
 Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi)
@@ -292,10 +269,9 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -473,10 +449,9 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -531,7 +506,6 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
 
         // std::cout << "--------------------------------------------------------" << std::endl;
 
-
         // Stencil BaseÇÃåvéZ
         Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
 
@@ -554,7 +528,6 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
 
             // ëÃêœïœâªó¶ÇÃåvéZ
             double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -8.0/3.0);
-           
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
                 Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
@@ -707,8 +680,6 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                     }
                 }
 
-
-
                 for (int col = 0; col < dimensions; col++) { // óÒêî
                     for (int row = 0; row < dimensions; row++) { // çsêî
                         double term = -(2.0 / 9.0) * mu * detF * WeightMOXi(row) * WeightLNTau(col) * WeightJK * volume_element;
@@ -720,7 +691,6 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
             }
 
         }
-
 
     }
 

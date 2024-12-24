@@ -279,7 +279,7 @@ Eigen::VectorXd Newton(Square square) {
 
         // Še”½•œ‚Å‚Ì‰æ‘œo—Í
         for (int i = 0; i < NumberOfParticles; i++) {
-            square.points[i].position[0] = barphi(3 * i);
+            square.points[i].position[0] = barphi(3 * i); 
             square.points[i].position[1] = barphi(3 * i + 1);
             square.points[i].position[2] = barphi(3 * i + 2);
         }

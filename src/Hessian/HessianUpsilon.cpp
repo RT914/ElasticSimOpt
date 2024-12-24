@@ -15,16 +15,8 @@ Eigen::MatrixXd calHessianUpsilon(const Square& square, const Eigen::VectorXd& r
     Eigen::MatrixXd HessianUpsilon1 = calHessianUpsilon1(square, re_phi, phi);
     Eigen::MatrixXd HessianUpsilon2 = calHessianUpsilon2(square, re_phi, phi);
     Eigen::MatrixXd HessianUpsilon3 = calHessianUpsilon3(square, re_phi, phi, power);
-    exportMatrix_CSV(HessianUpsilon3, "csv/HessianUpsilon3.csv");
-    HessianUpsilon = HessianUpsilon1 + HessianUpsilon2 + HessianUpsilon3;
 
-    /*std::cout << "HessianUpsilon1 + HessianUpsilon2" << std::endl;
-    for (int i = 0; i < 3 * NumberOfParticles; i++) {
-        for (int j = 0; j < 3 * NumberOfParticles; j++) {
-            if(abs(HessianUpsilon1(i,j)+HessianUpsilon2(i,j))>1e-10)
-                std::cout << HessianUpsilon1(i, j) + HessianUpsilon2(i, j) << std::endl;
-        }
-    }*/
+    HessianUpsilon = HessianUpsilon1 + HessianUpsilon2 + HessianUpsilon3;
 
     return HessianUpsilon;
 }
@@ -40,13 +32,13 @@ Eigen::MatrixXd calHessianUpsilon1(const Square& square, const Eigen::VectorXd& 
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
+
 
     // åWêîÇÃèâä˙âª
     Eigen::MatrixXd Phi_MN = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
@@ -219,10 +211,9 @@ Eigen::MatrixXd calHessianUpsilon2(const Square& square, const Eigen::VectorXd& 
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
@@ -474,10 +465,9 @@ Eigen::MatrixXd calHessianUpsilon3(const Square& square, const Eigen::VectorXd& 
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = 0; offset < square.SideNumber; offset++) {
-        int offset_value = -1 + offset * square.dx;
+    for (int offset = -1; offset <= 0; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset_value) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
             index++;
         }
     }
