@@ -18,9 +18,9 @@ Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi)
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
@@ -34,7 +34,7 @@ Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi)
         Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
         // Stencil BaseÇÃåvéZ
-        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
 
         // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨
         Eigen::MatrixXi stencil;
@@ -46,9 +46,9 @@ Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi)
             Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
             // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-            double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+            double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+            double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+            double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
                 Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
@@ -57,9 +57,9 @@ Eigen::MatrixXd calHessianQ(const Square& square, const Eigen::VectorXd& re_phi)
                 Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // iä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double hat_x_tau = HatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx);
+                double hat_y_tau = HatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx);
+                double hat_z_tau = HatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx);
 
                 // äeçÄÇÃåvéZ
                 double w_tau = hat_x_tau * hat_y_tau * hat_z_tau;

@@ -9,7 +9,7 @@
 #include "Camera.h"
 
 Camera::Camera()
-    : m_EyePoint(Eigen::Vector3d::Zero())
+    : m_EyePoint(Eigen::Vector3d{ 0.0, 0.0, 0.0 })
     , m_xVector(Eigen::Vector3d{ 1.0, 0.0, 0.0 })
     , m_yVector(Eigen::Vector3d{ 0.0, 1.0, 0.0 })
     , m_zVector(Eigen::Vector3d{ 0.0, 0.0, 1.0 })
@@ -40,7 +40,7 @@ void Camera::lookAt(const Eigen::Vector3d& in_LookAt, const Eigen::Vector3d& in_
 {
     const Eigen::Vector3d arm = in_LookAt - m_EyePoint;
     m_DistanceToObject = arm.norm();
-    m_zVector = -arm / m_DistanceToObject / 6; // 変更を加えた
+    m_zVector = -arm / m_DistanceToObject / 6;
 
     const double dot_up_z = in_Up.dot(m_zVector);
     m_yVector = in_Up - dot_up_z * m_zVector;

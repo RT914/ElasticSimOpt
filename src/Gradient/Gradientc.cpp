@@ -40,9 +40,9 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double >(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
@@ -65,7 +65,7 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
 
                 // Stencil BaseÇÃåvéZ
                 // Stencil BaseÇÃåvéZ
-                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
 
                 // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨
                 Eigen::MatrixXi stencil;
@@ -78,9 +78,9 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
                     // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-                    double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-                    double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+                    double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+                    double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+                    double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
                     double f_xi_0 = hat_x_xi * hat_y_xi * hat_z_xi;
 
                     for (int i = 0; i < NumberOfParticles; i++) {
@@ -90,9 +90,9 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                         // iä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                        double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                        double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                        double hat_x_i = HatFunction((cal_point(0) - grid_point_coordinates_i(0)) / square.dx);
+                        double hat_y_i = HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / square.dx);
+                        double hat_z_i = HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / square.dx);
                         double f_i_0 = hat_x_i * hat_y_i * hat_z_i;
 
                         double WeightIXi = K(i) * f_i_0 * f_xi_0;
@@ -109,7 +109,6 @@ Eigen::VectorXd calGradientc1(const Square& square, const Eigen::VectorXd& re_ph
     return Gradientc1;
 }
 
-
 // Calculate Gradient c2
 Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& theta) {
     Eigen::VectorXd Gradientc2 = Eigen::VectorXd::Zero(NumberOfParticles);
@@ -121,9 +120,9 @@ Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
@@ -136,7 +135,7 @@ Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_ph
                 Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
                 // Stencil BaseÇÃåvéZ
-                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
 
                 // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨
                 Eigen::MatrixXi stencil;
@@ -149,9 +148,9 @@ Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
                     // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-                    double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-                    double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+                    double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+                    double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+                    double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
                     double f_xi_0 = hat_x_xi * hat_y_xi * hat_z_xi;
 
                     double f_i_0 = 0.0;
@@ -163,9 +162,9 @@ Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                         // iä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                        double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                        double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                        double hat_x_i = HatFunction((cal_point(0) - grid_point_coordinates_i(0)) / square.dx);
+                        double hat_y_i = HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / square.dx);
+                        double hat_z_i = HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / square.dx);
                         f_i_0 += theta(i) * hat_x_i * hat_y_i * hat_z_i;
                     }
 
@@ -181,3 +180,4 @@ Eigen::VectorXd calGradientc2(const Square& square, const Eigen::VectorXd& re_ph
 
     return Gradientc2;
 }
+

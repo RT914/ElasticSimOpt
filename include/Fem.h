@@ -5,7 +5,7 @@
 
 const int dimensions = 3;
 
-const int NumberOfOneDemensionParticles = 3; // 3~5
+const int NumberOfOneDemensionParticles = 5; // 3~5
 const int NumberOfParticles = int(pow(NumberOfOneDemensionParticles, 3)); //125
 
 void calVelocity();

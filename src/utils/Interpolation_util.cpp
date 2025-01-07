@@ -53,12 +53,12 @@ Eigen::Vector3i FlatToGrid(int flat_index)
 };
 
 // Stencil BaseÇÃåvéZä÷êî
-Eigen::Vector3d calculateStencilBase(const Eigen::Vector3d& cal_point) {
+Eigen::Vector3d calculateStencilBase(const Eigen::Vector3d& cal_point, const double& distance) {
     // ïâÇÃï˚å¸Ç÷ÇÃä€ÇﬂçûÇ›ÅiäiéqÇÃénì_Ç™å¥ì_ÇÃÇΩÇﬂï‚ê≥Åj
     return Eigen::Vector3d(
-        std::floor(cal_point(0)) + 1,
-        std::floor(cal_point(1)) + 1,
-        std::floor(cal_point(2)) + 1
+        std::floor((cal_point(0) + 1) / distance),
+        std::floor((cal_point(1) + 1) / distance),
+        std::floor((cal_point(2) + 1) / distance)
     );
 }
 
@@ -83,7 +83,7 @@ std::vector<int> generateStencil(const Eigen::Vector3d& stencil_base, Eigen::Mat
     return stencil_num;
 }
 
-double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid_xi, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const int NumberOfParticles, const double exp)
+double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid_xi, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const int NumberOfParticles, const double& distance, const double exp)
 {
     double f_ijk = 0.0;
 
@@ -94,9 +94,9 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
         Eigen::Vector3d grid_point_coordinates_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
 
         // kä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-        double f_k_3 = HatFunction(cal_point(0) - grid_point_coordinates_k(0)) *
-            HatFunction(cal_point(1) - grid_point_coordinates_k(1)) *
-            DifferentialHatFunction(cal_point(2) - grid_point_coordinates_k(2));
+        double f_k_3 = HatFunction((cal_point(0) - grid_point_coordinates_k(0)) / distance) *
+            HatFunction((cal_point(1) - grid_point_coordinates_k(1)) / distance) *
+            DifferentialHatFunction((cal_point(2) - grid_point_coordinates_k(2)) / distance);
 
         for (int j = 0; j < NumberOfParticles; j++) {
             Eigen::Vector3i j_minus_xi = FlatToGrid(j) - grid_xi;
@@ -105,9 +105,9 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
             Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
             // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-            double f_j_2 = HatFunction(cal_point(0) - grid_point_coordinates_j(0)) *
-                DifferentialHatFunction(cal_point(1) - grid_point_coordinates_j(1)) *
-                HatFunction(cal_point(2) - grid_point_coordinates_j(2));
+            double f_j_2 = HatFunction((cal_point(0) - grid_point_coordinates_j(0)) / distance) *
+                DifferentialHatFunction((cal_point(1) - grid_point_coordinates_j(1)) / distance) *
+                HatFunction((cal_point(2) - grid_point_coordinates_j(2)) / distance);
 
             for (int i = 0; i < NumberOfParticles; i++) {
                 Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
@@ -116,15 +116,15 @@ double calRiemannJ(const Eigen::Vector3d& cal_point, const Eigen::Vector3i& grid
                 Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                 // iä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double f_i_1 = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_i(0)) *
-                    HatFunction(cal_point(1) - grid_point_coordinates_i(1)) *
-                    HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                double f_i_1 = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_i(0)) / distance) *
+                    HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / distance) *
+                    HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / distance);
 
                 double Phi0 = phi(3 * i) * (phi(3 * j + 1) * phi(3 * k + 2) - phi(3 * j + 2) * phi(3 * k + 1))
                     + phi(3 * i + 1) * (phi(3 * j + 2) * phi(3 * k) - phi(3 * j) * phi(3 * k + 2))
                     + phi(3 * i + 2) * (phi(3 * j) * phi(3 * k + 1) - phi(3 * j + 1) * phi(3 * k));
 
-                f_ijk += Phi0 * f_i_1 * f_j_2 * f_k_3;
+                f_ijk += Phi0 * f_i_1 * f_j_2 * f_k_3 * (1.0 / pow(distance, 3));
             }
 
         }

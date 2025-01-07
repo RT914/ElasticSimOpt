@@ -31,8 +31,9 @@ void Keyboard(unsigned char key, int x, int y);
 // メイン関数
 //----------------------------------------------------
 int main(int argc, char* argv[]) {
-	g_Camera.setEyePoint(Eigen::Vector3d{ 0.0, -100.0, 20.0 });
+	g_Camera.setEyePoint(Eigen::Vector3d{ 0.0, -100.0, 5.0 });
 	g_Camera.lookAt(Eigen::Vector3d{ 0.0, 500.0, 0.0 }, Eigen::Vector3d{ 0.0, 0.0, 1.0 });
+	g_Camera.setFocalLength(0.047);  // 対象物との距離
 
 	glutInit(&argc, argv);//環境の初期化
 	glutInitWindowPosition(WindowPositionX, WindowPositionY); //ウィンドウの位置の指定

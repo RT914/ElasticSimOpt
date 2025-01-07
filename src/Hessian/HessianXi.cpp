@@ -30,7 +30,6 @@ Eigen::MatrixXd calHessianXi(const Square& square, const Eigen::VectorXd& re_phi
     return HessianXi;
 }
 
-
 Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power)
 {
     Eigen::MatrixXd HessianXi1 = Eigen::MatrixXd::Zero(3 * NumberOfParticles, 3 * NumberOfParticles);
@@ -43,12 +42,14 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = ( static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) ) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
+
+    // std::cout << cal_points << std::endl;
 
     // åWêîÇÃèâä˙âª
     Eigen::MatrixXd Phi_NP = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
@@ -91,11 +92,20 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
         Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
 
         // Stencil BaseÇÃåvéZ
-        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
+        /*std::cout << "stencil_base : " << std::endl;
+        std::cout << stencil_base << std::endl;
+        std::cout << std::endl;*/
 
         // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨
         Eigen::MatrixXi stencil;
         std::vector<int> stencil_num = generateStencil(stencil_base, stencil);
+
+        /*for (int s = 0; s < stencil_num.size(); s++) {
+            std::cout << stencil_num[s] << std::endl;
+        }*/
+
+        // std::cout << "---------------------------" << std::endl;
 
         for (int xi = 0; xi < NumberOfParticles; xi++) {
             if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
@@ -103,19 +113,20 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
             Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
             // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-            double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
-            double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+            double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+            double diff_hat_x_xi = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx) / square.dx;
+            double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+            double diff_hat_y_xi = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx) / square.dx;
+            double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
+            double diff_hat_z_xi = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx) / square.dx;
 
             double w_xi_1 = diff_hat_x_xi * hat_y_xi * hat_z_xi;
             double w_xi_2 = hat_x_xi * diff_hat_y_xi * hat_z_xi;
             double w_xi_3 = hat_x_xi * hat_y_xi * diff_hat_z_xi;
 
             // ëÃêœïœâªó¶ÇÃåvéZ
-            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -1.0);
+            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, square.dx, -1.0);
+            // std::cout << " xi = " << xi << " : " << detF << std::endl;
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
                 Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
@@ -124,12 +135,12 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                 Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
-                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double hat_x_tau = HatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx);
+                double diff_hat_x_tau = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx) / square.dx;
+                double hat_y_tau = HatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx);
+                double diff_hat_y_tau = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx) / square.dx;
+                double hat_z_tau = HatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx);
+                double diff_hat_z_tau = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx) / square.dx;
 
                 double w_tau_1 = diff_hat_x_tau * hat_y_tau * hat_z_tau;
                 double w_tau_2 = hat_x_tau * diff_hat_y_tau * hat_z_tau;
@@ -146,11 +157,11 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
 
                     // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_l = HatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double diff_hat_x_l = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double hat_y_l = HatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double hat_z_l = HatFunction(cal_point(2) - grid_point_coordinates_l(2));
+                    double hat_x_l = HatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx);
+                    double diff_hat_x_l = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx) / square.dx;
+                    double hat_y_l = HatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx);
+                    double diff_hat_y_l = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx) / square.dx;
+                    double hat_z_l = HatFunction((cal_point(2) - grid_point_coordinates_l(2)) / square.dx);
 
                     double w_l_1 = diff_hat_x_l * hat_y_l * hat_z_l;
                     double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
@@ -162,11 +173,11 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_o = { re_phi(3 * o), re_phi(3 * o + 1), re_phi(3 * o + 2) };
 
                         // oä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_o = HatFunction(cal_point(0) - grid_point_coordinates_o(0));
-                        double hat_y_o = HatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                        double diff_hat_y_o = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                        double hat_z_o = HatFunction(cal_point(2) - grid_point_coordinates_o(2));
-                        double diff_hat_z_o = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_o(2));
+                        double hat_x_o = HatFunction((cal_point(0) - grid_point_coordinates_o(0)) / square.dx);
+                        double hat_y_o = HatFunction((cal_point(1) - grid_point_coordinates_o(1)) / square.dx);
+                        double diff_hat_y_o = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_o(1)) / square.dx) / square.dx;
+                        double hat_z_o = HatFunction((cal_point(2) - grid_point_coordinates_o(2)) / square.dx);
+                        double diff_hat_z_o = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_o(2)) / square.dx) / square.dx;
 
                         double w_o_2 = hat_x_o * diff_hat_y_o * hat_z_o;
                         double w_o_3 = hat_x_o * hat_y_o * diff_hat_z_o;
@@ -188,11 +199,11 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_n = { re_phi(3 * n), re_phi(3 * n + 1), re_phi(3 * n + 2) };
 
                     // nä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_n = HatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                    double diff_hat_x_n = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                    double hat_y_n = HatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                    double diff_hat_y_n = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                    double hat_z_n = HatFunction(cal_point(2) - grid_point_coordinates_n(2));
+                    double hat_x_n = HatFunction((cal_point(0) - grid_point_coordinates_n(0)) / square.dx);
+                    double diff_hat_x_n = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_n(0)) / square.dx) / square.dx;
+                    double hat_y_n = HatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx);
+                    double diff_hat_y_n = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx) / square.dx;
+                    double hat_z_n = HatFunction((cal_point(2) - grid_point_coordinates_n(2)) / square.dx);
 
                     double w_n_1 = diff_hat_x_n * hat_y_n * hat_z_n;
                     double w_n_2 = hat_x_n * diff_hat_y_n * hat_z_n;
@@ -204,11 +215,11 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_p = { re_phi(3 * p), re_phi(3 * p + 1), re_phi(3 * p + 2) };
 
                         // pä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_p = HatFunction(cal_point(0) - grid_point_coordinates_p(0));
-                        double hat_y_p = HatFunction(cal_point(1) - grid_point_coordinates_p(1));
-                        double diff_hat_y_p = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_p(1));
-                        double hat_z_p = HatFunction(cal_point(2) - grid_point_coordinates_p(2));
-                        double diff_hat_z_p = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_p(2));
+                        double hat_x_p = HatFunction((cal_point(0) - grid_point_coordinates_p(0)) / square.dx);
+                        double hat_y_p = HatFunction((cal_point(1) - grid_point_coordinates_p(1)) / square.dx);
+                        double diff_hat_y_p = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_p(1)) / square.dx) / square.dx;
+                        double hat_z_p = HatFunction((cal_point(2) - grid_point_coordinates_p(2)) / square.dx);
+                        double diff_hat_z_p = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_p(2)) / square.dx) / square.dx;
 
                         double w_p_2 = hat_x_p * diff_hat_y_p * hat_z_p;
                         double w_p_3 = hat_x_p * hat_y_p * diff_hat_z_p;
@@ -231,9 +242,9 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
 
                     // ì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_i = HatFunction(cal_point(0) - grid_point_coordinates_i(0));
-                    double hat_y_i = HatFunction(cal_point(1) - grid_point_coordinates_i(1));
-                    double hat_z_i = HatFunction(cal_point(2) - grid_point_coordinates_i(2));
+                    double hat_x_i = HatFunction((cal_point(0) - grid_point_coordinates_i(0)) / square.dx);
+                    double hat_y_i = HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / square.dx);
+                    double hat_z_i = HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / square.dx);
                     WeightI += power(i) * hat_x_i * hat_y_i * hat_z_i;
                 }
 
@@ -256,7 +267,6 @@ Eigen::MatrixXd calHessianXi1(const Square& square, const Eigen::VectorXd& re_ph
 }
 
 
-
 Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi)
 {
     Eigen::MatrixXd  HessianXi2 = Eigen::MatrixXd::Zero(3 * NumberOfParticles, 3 * NumberOfParticles);
@@ -269,9 +279,9 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
@@ -305,7 +315,7 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
 
 
         // Stencil BaseÇÃåvéZ
-        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
 
         // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨ 
         Eigen::MatrixXi stencil;
@@ -318,15 +328,15 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
             Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
             // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-            double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
-            double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+            double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+            double diff_hat_x_xi = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx) / square.dx;
+            double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+            double diff_hat_y_xi = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx) / square.dx;
+            double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
+            double diff_hat_z_xi = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx) / square.dx;
 
             // ëÃêœïœâªó¶ÇÃåvéZ
-            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -5.0 / 3.0);
+            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, square.dx, -5.0 / 3.0);
             // std::cout << detF << std::endl;
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
@@ -336,12 +346,12 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
                 Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
-                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double hat_x_tau = HatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx);
+                double diff_hat_x_tau = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx) / square.dx;
+                double hat_y_tau = HatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx);
+                double diff_hat_y_tau = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx) / square.dx;
+                double hat_z_tau = HatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx);
+                double diff_hat_z_tau = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx) / square.dx;
 
                 Eigen::Vector3d WeightLNTau = Eigen::Vector3d::Zero();
                 Eigen::Vector3d WeightJXi = Eigen::Vector3d::Zero();
@@ -353,11 +363,11 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
 
                     // lä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_l = HatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double diff_hat_x_l = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double hat_y_l = HatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double hat_z_l = HatFunction(cal_point(2) - grid_point_coordinates_l(2));
+                    double hat_x_l = HatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx);
+                    double diff_hat_x_l = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx) / square.dx;
+                    double hat_y_l = HatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx);
+                    double diff_hat_y_l = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx) / square.dx;
+                    double hat_z_l = HatFunction((cal_point(2) - grid_point_coordinates_l(2)) / square.dx);
 
                     for (int n = 0; n < NumberOfParticles; n++) {
                         Eigen::Vector3i n_minus_xi = FlatToGrid(n) - grid_xi;
@@ -366,11 +376,11 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_n = { re_phi(3 * n), re_phi(3 * n + 1), re_phi(3 * n + 2) };
 
                         // nä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_n = HatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                        double hat_y_n = HatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double diff_hat_y_n = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double hat_z_n = HatFunction(cal_point(2) - grid_point_coordinates_n(2));
-                        double diff_hat_z_n = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_n(2));
+                        double hat_x_n = HatFunction((cal_point(0) - grid_point_coordinates_n(0)) / square.dx);
+                        double hat_y_n = HatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx);
+                        double diff_hat_y_n = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx) / square.dx;
+                        double hat_z_n = HatFunction((cal_point(2) - grid_point_coordinates_n(2)) / square.dx);
+                        double diff_hat_z_n = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_n(2)) / square.dx) / square.dx;
 
                         // äeçÄÇÃåvéZ
                         double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
@@ -399,12 +409,12 @@ Eigen::MatrixXd calHessianXi2(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
                     // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_j = HatFunction(cal_point(0) - grid_point_coordinates_j(0));
-                    double diff_hat_x_j = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_j(0));
-                    double hat_y_j = HatFunction(cal_point(1) - grid_point_coordinates_j(1));
-                    double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_j(1));
-                    double hat_z_j = HatFunction(cal_point(2) - grid_point_coordinates_j(2));
-                    double diff_hat_z_j = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_j(2));
+                    double hat_x_j = HatFunction((cal_point(0) - grid_point_coordinates_j(0)) / square.dx);
+                    double diff_hat_x_j = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_j(0)) / square.dx) / square.dx;
+                    double hat_y_j = HatFunction((cal_point(1) - grid_point_coordinates_j(1)) / square.dx);
+                    double diff_hat_y_j = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_j(1)) / square.dx) / square.dx;
+                    double hat_z_j = HatFunction((cal_point(2) - grid_point_coordinates_j(2)) / square.dx);
+                    double diff_hat_z_j = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_j(2)) / square.dx) / square.dx;
 
                     // äeçÄÇÃåvéZ
                     double w_j_1 = diff_hat_x_j * hat_y_j * hat_z_j;
@@ -449,9 +459,9 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
 
     Eigen::VectorXd cal_points(kNum);
     int index = 0;
-    for (int offset = -1; offset <= 0; offset++) {
+    for (int offset = 0; offset < square.SideNumber; offset++) {
         for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
-            cal_points(index) = static_cast<double>(offset) + 1.0 / (2.0 * kNumSection) + divIndex * kWidth;
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
             index++;
         }
     }
@@ -507,7 +517,7 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
         // std::cout << "--------------------------------------------------------" << std::endl;
 
         // Stencil BaseÇÃåvéZ
-        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point);
+        Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
 
         // StencilçsóÒÇ∆stencil_numÇÃê∂ê¨
         Eigen::MatrixXi stencil;
@@ -519,15 +529,15 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
             Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
 
             // xiä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-            double hat_x_xi = HatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double diff_hat_x_xi = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_xi(0));
-            double hat_y_xi = HatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double diff_hat_y_xi = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_xi(1));
-            double hat_z_xi = HatFunction(cal_point(2) - grid_point_coordinates_xi(2));
-            double diff_hat_z_xi = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_xi(2));
+            double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+            double diff_hat_x_xi = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx) / square.dx;
+            double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+            double diff_hat_y_xi = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx) / square.dx;
+            double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
+            double diff_hat_z_xi = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx) / square.dx;
 
             // ëÃêœïœâªó¶ÇÃåvéZ
-            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, -8.0/3.0);
+            double detF = calRiemannJ(cal_point, grid_xi, re_phi, phi, NumberOfParticles, square.dx, -8.0/3.0);
 
             for (int tau = 0; tau < NumberOfParticles; tau++) {
                 Eigen::Vector3i tau_minus_xi = FlatToGrid(tau) - grid_xi;
@@ -536,12 +546,12 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                 Eigen::Vector3d grid_point_coordinates_tau = { re_phi(3 * tau), re_phi(3 * tau + 1), re_phi(3 * tau + 2) };
 
                 // tauä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                double hat_x_tau = HatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double diff_hat_x_tau = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_tau(0));
-                double hat_y_tau = HatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double diff_hat_y_tau = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_tau(1));
-                double hat_z_tau = HatFunction(cal_point(2) - grid_point_coordinates_tau(2));
-                double diff_hat_z_tau = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_tau(2));
+                double hat_x_tau = HatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx);
+                double diff_hat_x_tau = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_tau(0)) / square.dx) / square.dx;
+                double hat_y_tau = HatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx);
+                double diff_hat_y_tau = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_tau(1)) / square.dx) / square.dx;
+                double hat_z_tau = HatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx);
+                double diff_hat_z_tau = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_tau(2)) / square.dx) / square.dx;
 
                 Eigen::Vector3d WeightLNTau = Eigen::Vector3d::Zero();
                 Eigen::Vector3d WeightMOXi = Eigen::Vector3d::Zero();
@@ -554,11 +564,11 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_l = { re_phi(3 * l), re_phi(3 * l + 1), re_phi(3 * l + 2) };
 
                     // lä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_l = HatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double diff_hat_x_l = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_l(0));
-                    double hat_y_l = HatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double diff_hat_y_l = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_l(1));
-                    double hat_z_l = HatFunction(cal_point(2) - grid_point_coordinates_l(2));
+                    double hat_x_l = HatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx);
+                    double diff_hat_x_l = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_l(0)) / square.dx) / square.dx;
+                    double hat_y_l = HatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx);
+                    double diff_hat_y_l = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_l(1)) / square.dx) / square.dx;
+                    double hat_z_l = HatFunction((cal_point(2) - grid_point_coordinates_l(2)) / square.dx);
 
                     for (int n = 0; n < NumberOfParticles; n++) {
                         Eigen::Vector3i n_minus_xi = FlatToGrid(n) - grid_xi;
@@ -567,11 +577,11 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_n = { re_phi(3 * n), re_phi(3 * n + 1), re_phi(3 * n + 2) };
 
                         // nä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_n = HatFunction(cal_point(0) - grid_point_coordinates_n(0));
-                        double hat_y_n = HatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double diff_hat_y_n = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_n(1));
-                        double hat_z_n = HatFunction(cal_point(2) - grid_point_coordinates_n(2));
-                        double diff_hat_z_n = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_n(2));
+                        double hat_x_n = HatFunction((cal_point(0) - grid_point_coordinates_n(0)) / square.dx);
+                        double hat_y_n = HatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx);
+                        double diff_hat_y_n = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_n(1)) / square.dx) / square.dx;
+                        double hat_z_n = HatFunction((cal_point(2) - grid_point_coordinates_n(2)) / square.dx);
+                        double diff_hat_z_n = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_n(2)) / square.dx) / square.dx;
 
                         // äeçÄÇÃåvéZ
                         double w_l_2 = hat_x_l * diff_hat_y_l * hat_z_l;
@@ -598,12 +608,12 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_j = { re_phi(3 * j), re_phi(3 * j + 1), re_phi(3 * j + 2) };
 
                     // jä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double diff_hat_x_j = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_j(0));
-                    double diff_hat_y_j = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_j(1));
-                    double diff_hat_z_j = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_j(2));
-                    double hat_x_j = HatFunction(cal_point(0) - grid_point_coordinates_j(0));
-                    double hat_y_j = HatFunction(cal_point(1) - grid_point_coordinates_j(1));
-                    double hat_z_j = HatFunction(cal_point(2) - grid_point_coordinates_j(2));
+                    double diff_hat_x_j = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_j(0)) / square.dx) / square.dx;
+                    double diff_hat_y_j = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_j(1)) / square.dx) / square.dx;
+                    double diff_hat_z_j = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_j(2)) / square.dx) / square.dx;
+                    double hat_x_j = HatFunction((cal_point(0) - grid_point_coordinates_j(0)) / square.dx);
+                    double hat_y_j = HatFunction((cal_point(1) - grid_point_coordinates_j(1)) / square.dx);
+                    double hat_z_j = HatFunction((cal_point(2) - grid_point_coordinates_j(2)) / square.dx);
 
                     double w_j_1 = diff_hat_x_j * hat_y_j * hat_z_j;
                     double w_j_2 = hat_x_j * diff_hat_y_j * hat_z_j;
@@ -616,12 +626,12 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_k = { re_phi(3 * k), re_phi(3 * k + 1), re_phi(3 * k + 2) };
 
                         // kä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double diff_hat_x_k = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_k(0));
-                        double diff_hat_y_k = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_k(1));
-                        double diff_hat_z_k = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_k(2));
-                        double hat_x_k = HatFunction(cal_point(0) - grid_point_coordinates_k(0));
-                        double hat_y_k = HatFunction(cal_point(1) - grid_point_coordinates_k(1));
-                        double hat_z_k = HatFunction(cal_point(2) - grid_point_coordinates_k(2));
+                        double diff_hat_x_k = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_k(0)) / square.dx) / square.dx;
+                        double diff_hat_y_k = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_k(1)) / square.dx) / square.dx;
+                        double diff_hat_z_k = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_k(2)) / square.dx) / square.dx;
+                        double hat_x_k = HatFunction((cal_point(0) - grid_point_coordinates_k(0)) / square.dx);
+                        double hat_y_k = HatFunction((cal_point(1) - grid_point_coordinates_k(1)) / square.dx);
+                        double hat_z_k = HatFunction((cal_point(2) - grid_point_coordinates_k(2)) / square.dx);
 
                         double w_k_1 = diff_hat_x_k * hat_y_k * hat_z_k;
                         double w_k_2 = hat_x_k * diff_hat_y_k * hat_z_k;
@@ -642,11 +652,11 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                     Eigen::Vector3d grid_point_coordinates_m = { re_phi(3 * m), re_phi(3 * m + 1), re_phi(3 * m + 2) };
 
                     // mä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                    double hat_x_m = HatFunction(cal_point(0) - grid_point_coordinates_m(0));
-                    double diff_hat_x_m = DifferentialHatFunction(cal_point(0) - grid_point_coordinates_m(0));
-                    double hat_y_m = HatFunction(cal_point(1) - grid_point_coordinates_m(1));
-                    double diff_hat_y_m = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_m(1));
-                    double hat_z_m = HatFunction(cal_point(2) - grid_point_coordinates_m(2));
+                    double hat_x_m = HatFunction((cal_point(0) - grid_point_coordinates_m(0)) / square.dx);
+                    double diff_hat_x_m = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_m(0)) / square.dx) / square.dx;
+                    double hat_y_m = HatFunction((cal_point(1) - grid_point_coordinates_m(1)) / square.dx);
+                    double diff_hat_y_m = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_m(1)) / square.dx) / square.dx;
+                    double hat_z_m = HatFunction((cal_point(2) - grid_point_coordinates_m(2)) / square.dx);
 
                     for (int o = 0; o < NumberOfParticles; o++) {
                         Eigen::Vector3i o_minus_xi = FlatToGrid(o) - grid_xi;
@@ -655,11 +665,11 @@ Eigen::MatrixXd calHessianXi3(const Square& square, const Eigen::VectorXd& re_ph
                         Eigen::Vector3d grid_point_coordinates_o = { re_phi(3 * o), re_phi(3 * o + 1), re_phi(3 * o + 2) };
 
                         // oä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
-                        double hat_x_o = HatFunction(cal_point(0) - grid_point_coordinates_o(0));
-                        double hat_y_o = HatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                        double diff_hat_y_o = DifferentialHatFunction(cal_point(1) - grid_point_coordinates_o(1));
-                        double hat_z_o = HatFunction(cal_point(2) - grid_point_coordinates_o(2));
-                        double diff_hat_z_o = DifferentialHatFunction(cal_point(2) - grid_point_coordinates_o(2));
+                        double hat_x_o = HatFunction((cal_point(0) - grid_point_coordinates_o(0)) / square.dx);
+                        double hat_y_o = HatFunction((cal_point(1) - grid_point_coordinates_o(1)) / square.dx);
+                        double diff_hat_y_o = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_o(1)) / square.dx) / square.dx;
+                        double hat_z_o = HatFunction((cal_point(2) - grid_point_coordinates_o(2)) / square.dx);
+                        double diff_hat_z_o = DifferentialHatFunction((cal_point(2) - grid_point_coordinates_o(2)) / square.dx) / square.dx;
 
                         // äeçÄÇÃåvéZ
                         double w_m_2 = hat_x_m * diff_hat_y_m * hat_z_m;

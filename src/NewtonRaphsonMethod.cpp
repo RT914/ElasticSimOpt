@@ -83,7 +83,7 @@ Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, 
     MatrixS.block(4 * NumberOfParticles, 0, NumberOfParticles, 3 * NumberOfParticles) = MatrixP;
     MatrixS.block(4 * NumberOfParticles, 3 * NumberOfParticles, NumberOfParticles, NumberOfParticles) = MatrixQ;
 
-    exportMatrix_CSV(MatrixS, "csv/MatrixS.csv");
+    // exportMatrix_CSV(MatrixS, "csv/MatrixS.csv");
 
     return MatrixS;
 }
@@ -120,7 +120,7 @@ Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, 
     Vectore.segment(3 * NumberOfParticles, NumberOfParticles) = Vectorc;
     Vectore.tail(NumberOfParticles) = Vectorb;
 
-    exportVector_CSV(Vectore, "csv/Vectore.csv");
+    // exportVector_CSV(Vectore, "csv/Vectore.csv");
 
     return Vectore;
 }
@@ -209,7 +209,7 @@ Eigen::VectorXd Newton(Square square) {
         double eps2 = 0.9;
         double lambda = 1.0;
         int line_search_times = 0;
-
+        
         // 初期化
         Eigen::VectorXd barphi_prime = VectorDeltaPhi * lambda + barphi;
         Eigen::VectorXd bartheta_prime = VectorDeltaTheta * lambda + bartheta;
@@ -223,33 +223,30 @@ Eigen::VectorXd Newton(Square square) {
         Eigen::VectorXd f = Vectore;
         Eigen::VectorXd nabla_f_p = MatrixS * VectorDelta;
         Eigen::VectorXd nabla_f_prime_p = MatrixS_prime * VectorDelta;
-
-        /*
+        
         // Armijo条件
         while ( !( f_prime.norm() <= f.norm() + (eps1 * lambda * nabla_f_p).norm())) {
-        // while (Armijo(f_prime, f + eps1 * lambda * nabla_f_p)) {
-
             // 曲率条件
-            //while ( !(nabla_f_prime_p.norm() <= eps2 * nabla_f_p.norm()) ) {
+            while ( !(nabla_f_prime_p.norm() >= eps2 * nabla_f_p.norm()) ) {
 
-            //    std::cout << "  直線探索 反復回数：　" << ++line_search_times << "回" << std::endl;
+                std::cout << "  直線探索 反復回数：　" << ++line_search_times << "回" << std::endl;
 
-            //    // 更新幅の更新
-            //    lambda *= sigma_curvature;
+                // 更新幅の更新
+                lambda *= sigma_curvature;
 
-            //    std::cout << "  lambda : " << lambda << "\n";
+                std::cout << "  lambda : " << lambda << "\n";
 
-            //    // 各要素の更新
-            //    barphi_prime = VectorDeltaPhi * lambda + barphi;
-            //    bartheta_prime = VectorDeltaTheta * lambda + bartheta;
-            //    barpower_prime = VectorDeltaPower * lambda + barpower;
+                // 各要素の更新
+                barphi_prime = VectorDeltaPhi * lambda + barphi;
+                bartheta_prime = VectorDeltaTheta * lambda + bartheta;
+                barpower_prime = VectorDeltaPower * lambda + barpower;
 
-            //    MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
+                MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
 
-            //    // 曲率条件の再計算
-            //    nabla_f_prime_p = MatrixS_prime * VectorDelta;
-            //    nabla_f_p = MatrixS * VectorDelta;
-            //}
+                // 曲率条件の再計算
+                nabla_f_prime_p = MatrixS_prime * VectorDelta;
+                nabla_f_p = MatrixS * VectorDelta;
+            }
             
             std::cout << "  直線探索 反復回数：　" << ++line_search_times << "回" << std::endl;
 
@@ -270,7 +267,7 @@ Eigen::VectorXd Newton(Square square) {
             nabla_f_p = MatrixS * VectorDelta;
         }
         std::cout << std::endl;
-        */
+        
 
         // Update
         barphi += lambda * VectorDeltaPhi;
@@ -292,10 +289,14 @@ Eigen::VectorXd Newton(Square square) {
     Eigen::VectorXd vec = Eigen::Map<Eigen::VectorXd>(NormVec.data(), NormVec.size());
     exportVector_CSV(vec, "csv/NormVec.csv");
 
+    // 1辺の格子数
+    int n = square.SideNumber + 1;
+
     // 3×3×3の各角頂点情報の抽出
     std::vector<Eigen::Vector3d> vertices;
     for (int i = 0; i < SquarePointsNumber; i++) {
-        if (i == 0 || i ==2 || i == 6 || i == 8 || i == 18 || i == 20 || i == 24 || i == 26 ) {
+        if (i == 0 || i == n - 1 || i == pow(n, 2) - n || i == pow(n, 2) - 1 || i == pow(n, 3) - pow(n, 2) || i == pow(n, 3) - pow(n, 2) + n - 1 
+            || i == pow(n, 3) - n || i == pow(n, 3) - 1) {
             Eigen::Vector3d vector = { barphi(3 * i), barphi(3 * i + 1), barphi(3 * i + 2) };
             vertices.emplace_back(vector);
         }
@@ -417,9 +418,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // Calculation Gradient
     // Vectorb(NumberOfParticles)
-    Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
-    // Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
-    exportVector_CSV(Vectorb, "csv/Vectorb.csv");
+    // Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
+    Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
+    // exportVector_CSV(Vectorb, "csv/Vectorb.csv");
     if (Vectorb.array().isNaN().any()) {
         std::cerr << "NaN detected Vector b" << std::endl;
     }
@@ -430,7 +431,7 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // Vectorc(NumberOfParticles)
     Eigen::VectorXd Vectorc = Eigen::VectorXd::Zero(NumberOfParticles);
     // Eigen::VectorXd Vectorc = calGradientc(square, re_phi, barphi, barpower, bartheta);
-    exportVector_CSV(Vectorc, "csv/Vectorc.csv");
+    // exportVector_CSV(Vectorc, "csv/Vectorc.csv");
     if (Vectorc.array().isNaN().any()) {
         std::cerr << "NaN detected Vector c" << std::endl;
     }
@@ -439,9 +440,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // std::cout << Vectorc << std::endl;
 
     // Vectord(3 * NumberOfParticles)
-    // Eigen::VectorXd Vectord = Eigen::VectorXd::Zero(3 * NumberOfParticles);
-    Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
-    exportVector_CSV(Vectord, "csv/Vectord.csv");
+    Eigen::VectorXd Vectord = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+    // Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
+    // exportVector_CSV(Vectord, "csv/Vectord.csv");
     if (Vectord.array().isNaN().any()) {
         std::cerr << "NaN detected Vector d" << std::endl;
     }

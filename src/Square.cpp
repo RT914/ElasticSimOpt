@@ -25,15 +25,21 @@ Square createSquare(int N)
 
 	// ™’’f•ÏŒ`‚Ì•Ï‰»”{—¦ iŠiqŠÔ‹——£~•Ï‰»”{—¦j
 	double magnification = 0.5;
+	// ‘ÌÏ•ÏŒ`‚Ìk¬”{—¦
+	double reduct = 0.3;
+	// ‘ÌÏ•ÏŒ`‚Ìk¬”{—¦
+	double expanse = 1.3;
 
 	double square_x = square.position(0);
 	double square_y = square.position(1);
 	double square_z = square.position(2);
 	Eigen::Vector3d base_point;
 	// base_point << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0; // QÆÀ•W‚Æ“™‚µ‚¢
-	// base_point << pos.x() - 0.5, pos.y() - 0.5, pos.z() - 0.5; // ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
-	// base_point << pos.x() - 1.2, pos.y() - 1.2, pos.z() - 1.2; // ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
-	base_point << pos.x() - 1.0 - magnification * dx, pos.y() - 1.0, pos.z() - 1.0; // ™’’f•ÏŒ`
+	// base_point << pos.x() - reduct, pos.y() - reduct, pos.z() - reduct; // ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
+	// base_point << pos.x() - expanse, pos.y() - expanse, pos.z() - expanse; // ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
+	// base_point << pos.x() - 1.0 - magnification * dx, pos.y() - 1.0, pos.z() -1.0; // ™’’f•ÏŒ`
+	base_point << pos.x() - reduct - magnification * dx * reduct, pos.y() - reduct, pos.z() - reduct; // ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
+	// base_point << pos.x() - expanse - magnification * dx * expanse, pos.y() - expanse, pos.z() - expanse; // ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(Šg‘åó‘Ô)
 	Eigen::Vector3d base_refpoint;
 	base_refpoint << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0;
 
@@ -43,19 +49,29 @@ Square createSquare(int N)
 
 				// ‰Â•Ï‚ÌÀ•WFmpm‚Ì—±q“_‚Æ“¯‹`
 				// ™’’f•ÏŒ`
-				double x = i * dx + base_point.x() + 2 * magnification * dx / SideNumber * k;
+				/*double x = i * dx + base_point.x() + 2 * magnification * dx / SideNumber * k;
 				double y = j * dx + base_point.y();
-				double z = k * dx + base_point.z();
+				double z = k * dx + base_point.z();*/
 				
 				// ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
-				/*double x = i * dx * 1.2 + base_point.x();
-				double y = j * dx * 1.2 + base_point.y();
-				double z = k * dx * 1.2 + base_point.z();*/
+				/*double x = i * dx * expanse + base_point.x();
+				double y = j * dx * expanse + base_point.y();
+				double z = k * dx * expanse + base_point.z();*/
 
 				// ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
-				/*double x = i * dx * 0.5 + base_point.x();
-				double y = j * dx * 0.5 + base_point.y();
-				double z = k * dx * 0.5 + base_point.z();*/
+				/*double x = i * dx * reduct + base_point.x();
+				double y = j * dx * reduct + base_point.y();
+				double z = k * dx * reduct + base_point.z();*/
+
+				// ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
+				double x = i * dx * reduct + base_point.x() + 2 * reduct * magnification * dx / SideNumber * k;
+				double y = j * dx * reduct + base_point.y();
+				double z = k * dx * reduct + base_point.z();
+
+				// ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(Šg‘åó‘Ô)
+				/*double x = i * dx * expanse + base_point.x() + 2 * expanse * magnification * dx / SideNumber * k;
+				double y = j * dx * expanse + base_point.y();
+				double z = k * dx * expanse + base_point.z();*/
 				
 				// ‰Šúó‘Ô
 				/*double x = i * dx + base_point.x();

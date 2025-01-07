@@ -217,15 +217,18 @@ void Ground()
 {
 	double ground_max_x = 300.0;
 	double ground_max_y = 300.0;
+
+	double z = -10.0;
+
 	glColor3d(0.2, 0.8, 0.8);  // ‘å’n‚ÌF
 	glBegin(GL_LINES);
 	for (double ly = -ground_max_y; ly <= ground_max_y; ly += 10.0) {
-		glVertex3d(-ground_max_x, ly, 0);
-		glVertex3d(ground_max_x, ly, 0);
+		glVertex3d(-ground_max_x, ly, z);
+		glVertex3d(ground_max_x, ly, z);
 	}
 	for (double lx = -ground_max_x; lx <= ground_max_x; lx += 10.0) {
-		glVertex3d(lx, ground_max_y, 0);
-		glVertex3d(lx, -ground_max_y, 0);
+		glVertex3d(lx, ground_max_y, z);
+		glVertex3d(lx, -ground_max_y, z);
 	}
 	glEnd();
 }
