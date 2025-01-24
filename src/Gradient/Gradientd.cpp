@@ -12,10 +12,13 @@ Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi
     Gradientd.setZero();
 
     Eigen::VectorXd Gradientd1 = calGradientd1(square, re_phi, phi);
+    exportVector_CSV(Gradientd1, "csv/Vectord1.csv");
 
     Eigen::VectorXd Gradientd2 = calGradientd2(square, re_phi, phi);
+    exportVector_CSV(Gradientd2, "csv/Vectord2.csv");
 
     Eigen::VectorXd Gradientd3 = calGradientd3(square, re_phi, phi, power);
+    exportVector_CSV(Gradientd3, "csv/Vectord3.csv");
 
     Gradientd = -(Gradientd1 + Gradientd2 + Gradientd3);
 
@@ -260,9 +263,9 @@ Eigen::VectorXd calGradientd2(const Square& square, const Eigen::VectorXd& re_ph
 
                         // kä÷òAÇÃì‡ë}ä÷êîÇÃåvéZ
                         double hat_x_k = HatFunction((cal_point(0) - grid_point_coordinates_k(0)) / square.dx);
-                        double diff_hat_x_k = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_k(0)) / square.dx);
+                        double diff_hat_x_k = DifferentialHatFunction((cal_point(0) - grid_point_coordinates_k(0)) / square.dx) / square.dx;
                         double hat_y_k = HatFunction((cal_point(1) - grid_point_coordinates_k(1)) / square.dx);
-                        double diff_hat_y_k = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_k(1)) / square.dx);
+                        double diff_hat_y_k = DifferentialHatFunction((cal_point(1) - grid_point_coordinates_k(1)) / square.dx) / square.dx;
                         double hat_z_k = HatFunction((cal_point(2) - grid_point_coordinates_k(2)) / square.dx);
 
                         for (int l = 0; l < NumberOfParticles; l++) {

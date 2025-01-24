@@ -120,7 +120,7 @@ Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, 
     Vectore.segment(3 * NumberOfParticles, NumberOfParticles) = Vectorc;
     Vectore.tail(NumberOfParticles) = Vectorb;
 
-    // exportVector_CSV(Vectore, "csv/Vectore.csv");
+    exportVector_CSV(Vectore, "csv/Vectore.csv");
 
     return Vectore;
 }
@@ -133,6 +133,8 @@ Eigen::VectorXd Newton(Square square) {
     // 最適化計算の初期化
     double NormVectorDelta = 1.0;
     int SquarePointsNumber = square.points.size();
+    int PointNumbers = 5 * NumberOfParticles;
+    double threshold = 1.0e-2;
 
     // 変位
     Eigen::VectorXd barphi(3 * NumberOfParticles);
@@ -166,8 +168,12 @@ Eigen::VectorXd Newton(Square square) {
 
     // 初期値のレンダリング
     renderAndSave(square, looptimes);
+
+    // 閾値の標準化
+    // threshold *= pow(PointNumbers, 0.5);
+    // std::cout << threshold << std::endl;
     
-    while (NormVectorDelta > 1.0e-2) {
+    while (NormVectorDelta > threshold) {
 
         std::cout << "反復回数：　" << ++looptimes << "回" << std::endl;
 
@@ -197,7 +203,8 @@ Eigen::VectorXd Newton(Square square) {
         // Set VectorDeltaPower
         VectorDeltaPower = VectorDelta.segment(NumberOfParticles * 4, NumberOfParticles);
 
-        NormVectorDelta = VectorDelta.norm();
+        NormVectorDelta = VectorDelta.norm(); // ノルム
+        // NormVectorDelta = VectorDelta.cwiseAbs().mean(); // 平均絶対値
 
         std::cout << "Norm : " << NormVectorDelta << std::endl;
         NormVec.push_back(NormVectorDelta);
@@ -209,6 +216,7 @@ Eigen::VectorXd Newton(Square square) {
         double eps2 = 0.9;
         double lambda = 1.0;
         int line_search_times = 0;
+        
         
         // 初期化
         Eigen::VectorXd barphi_prime = VectorDeltaPhi * lambda + barphi;
@@ -223,6 +231,7 @@ Eigen::VectorXd Newton(Square square) {
         Eigen::VectorXd f = Vectore;
         Eigen::VectorXd nabla_f_p = MatrixS * VectorDelta;
         Eigen::VectorXd nabla_f_prime_p = MatrixS_prime * VectorDelta;
+        
         
         // Armijo条件
         while ( !( f_prime.norm() <= f.norm() + (eps1 * lambda * nabla_f_p).norm())) {
@@ -267,7 +276,6 @@ Eigen::VectorXd Newton(Square square) {
             nabla_f_p = MatrixS * VectorDelta;
         }
         std::cout << std::endl;
-        
 
         // Update
         barphi += lambda * VectorDeltaPhi;
@@ -283,7 +291,7 @@ Eigen::VectorXd Newton(Square square) {
         renderAndSave(square, looptimes);
 
         // 指定反復数で終了
-        // if (looptimes > 2) break;
+        // if (looptimes > 0) break;
     }
 
     Eigen::VectorXd vec = Eigen::Map<Eigen::VectorXd>(NormVec.data(), NormVec.size());
@@ -418,8 +426,8 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // Calculation Gradient
     // Vectorb(NumberOfParticles)
-    // Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
-    Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
+    Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
+    // Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
     // exportVector_CSV(Vectorb, "csv/Vectorb.csv");
     if (Vectorb.array().isNaN().any()) {
         std::cerr << "NaN detected Vector b" << std::endl;
@@ -440,9 +448,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // std::cout << Vectorc << std::endl;
 
     // Vectord(3 * NumberOfParticles)
-    Eigen::VectorXd Vectord = Eigen::VectorXd::Zero(3 * NumberOfParticles);
-    // Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
-    // exportVector_CSV(Vectord, "csv/Vectord.csv");
+    // Eigen::VectorXd Vectord = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+    Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
+    exportVector_CSV(Vectord, "csv/Vectord.csv");
     if (Vectord.array().isNaN().any()) {
         std::cerr << "NaN detected Vector d" << std::endl;
     }

@@ -12,7 +12,7 @@ Square createSquare(int N)
 	Eigen::Vector3d pos;
 	pos << 0.0, 0.0, 0.0;
 	int one_d_point_num = N;
-	int SideNumber = N - 1;
+	double SideNumber = N - 1;
 	double dx = 2.0 / SideNumber; // ŠiŽqŠÔ‹——£
 	Square square(pos, dx, SideNumber);
 	Eigen::Vector3d position;
@@ -26,8 +26,8 @@ Square createSquare(int N)
 	// ™’’f•ÏŒ`‚Ì•Ï‰»”{—¦ iŠiŽqŠÔ‹——£~•Ï‰»”{—¦j
 	double magnification = 0.5;
 	// ‘ÌÏ•ÏŒ`‚Ìk¬”{—¦
-	double reduct = 0.3;
-	// ‘ÌÏ•ÏŒ`‚Ìk¬”{—¦
+	double reduct = 0.2;
+	// ‘ÌÏ•ÏŒ`‚ÌŠg‘å”{—¦
 	double expanse = 1.3;
 
 	double square_x = square.position(0);
@@ -37,8 +37,8 @@ Square createSquare(int N)
 	// base_point << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0; // ŽQÆÀ•W‚Æ“™‚µ‚¢
 	// base_point << pos.x() - reduct, pos.y() - reduct, pos.z() - reduct; // ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
 	// base_point << pos.x() - expanse, pos.y() - expanse, pos.z() - expanse; // ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
-	// base_point << pos.x() - 1.0 - magnification * dx, pos.y() - 1.0, pos.z() -1.0; // ™’’f•ÏŒ`
-	base_point << pos.x() - reduct - magnification * dx * reduct, pos.y() - reduct, pos.z() - reduct; // ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
+	base_point << pos.x() - 1.0 - magnification, pos.y() - 1.0, pos.z() -1.0; // ™’’f•ÏŒ`
+	// base_point << pos.x() - reduct - magnification * dx * reduct, pos.y() - reduct, pos.z() - reduct; // ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
 	// base_point << pos.x() - expanse - magnification * dx * expanse, pos.y() - expanse, pos.z() - expanse; // ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(Šg‘åó‘Ô)
 	Eigen::Vector3d base_refpoint;
 	base_refpoint << pos.x() - 1.0, pos.y() - 1.0, pos.z() - 1.0;
@@ -49,9 +49,9 @@ Square createSquare(int N)
 
 				// ‰Â•Ï‚ÌÀ•WFmpm‚Ì—±Žq“_‚Æ“¯‹`
 				// ™’’f•ÏŒ`
-				/*double x = i * dx + base_point.x() + 2 * magnification * dx / SideNumber * k;
+				double x = i * dx + base_point.x() + magnification * dx * k;
 				double y = j * dx + base_point.y();
-				double z = k * dx + base_point.z();*/
+				double z = k * dx + base_point.z();
 				
 				// ‘ÌÏ•ÏŒ`(–c’£ó‘Ô)
 				/*double x = i * dx * expanse + base_point.x();
@@ -64,9 +64,9 @@ Square createSquare(int N)
 				double z = k * dx * reduct + base_point.z();*/
 
 				// ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(k¬ó‘Ô)
-				double x = i * dx * reduct + base_point.x() + 2 * reduct * magnification * dx / SideNumber * k;
+				/*double x = i * dx * reduct + base_point.x() + 2 * reduct * magnification * dx / SideNumber * k;
 				double y = j * dx * reduct + base_point.y();
-				double z = k * dx * reduct + base_point.z();
+				double z = k * dx * reduct + base_point.z();*/
 
 				// ™’’f•ÏŒ`‚Æ‘ÌÏ•ÏŒ`(Šg‘åó‘Ô)
 				/*double x = i * dx * expanse + base_point.x() + 2 * expanse * magnification * dx / SideNumber * k;
