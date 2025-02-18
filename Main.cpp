@@ -14,6 +14,7 @@ bool input_key = false;
 int mx, my;
 
 Camera g_Camera;
+Square square = createSquare(NumberOfOneDemensionParticles);
 
 //----------------------------------------------------
 // 関数プロトタイプ（後に呼び出す関数名と引数の宣言）
@@ -72,8 +73,8 @@ void Display(void) {
 	glColor4f(0.5f, 0.0f, 0.0f, 1.0f);
 	// printf("Simulation Time : %d回目\n", SimulationTime);
 	SimulationTime++;
-	fem(SimulationTime);
-	// fem_vector(SimulationTime);
+	square = fem(square, SimulationTime);
+	// fem_vector(square, SimulationTime);
 	input_key = false;
 
 	glFlush();

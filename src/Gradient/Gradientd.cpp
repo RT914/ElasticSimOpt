@@ -7,20 +7,24 @@
 #include "../../include/Gradient/Gradientd.h"
 
 
-Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power) {
+Eigen::VectorXd calGradientd(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_current, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power) {
     Eigen::VectorXd Gradientd(3 * NumberOfParticles);
     Gradientd.setZero();
 
-    Eigen::VectorXd Gradientd1 = calGradientd1(square, re_phi, phi);
+    Eigen::VectorXd Gradientd1 = calGradientd1(square, re_phi, phi) * pow(dt, 2);
     exportVector_CSV(Gradientd1, "csv/Vectord1.csv");
 
-    Eigen::VectorXd Gradientd2 = calGradientd2(square, re_phi, phi);
+    Eigen::VectorXd Gradientd2 = calGradientd2(square, re_phi, phi) * pow(dt, 2);
     exportVector_CSV(Gradientd2, "csv/Vectord2.csv");
 
-    Eigen::VectorXd Gradientd3 = calGradientd3(square, re_phi, phi, power);
+    Eigen::VectorXd Gradientd3 = calGradientd3(square, re_phi, phi, power) * pow(dt, 2);
     exportVector_CSV(Gradientd3, "csv/Vectord3.csv");
 
+    Eigen::VectorXd Gradientd4 = calGradientd4(square, re_phi, phi, phi_current, phi_previous);
+    exportVector_CSV(Gradientd4, "csv/Vectord4.csv");
+
     Gradientd = -(Gradientd1 + Gradientd2 + Gradientd3);
+    // Gradientd = -(Gradientd1 + Gradientd2 + Gradientd3) + Gradientd4;
 
     return Gradientd;
 }
@@ -459,4 +463,93 @@ Eigen::VectorXd calGradientd3(const Square& square, const Eigen::VectorXd& re_ph
     }
 
     return Gradientd3;
+}
+
+
+Eigen::VectorXd calGradientd4(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_current, const Eigen::VectorXd& phi_previous) {
+    Eigen::VectorXd Gradientd4 = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+    const int kNumSection = 3; // Še‹æŠÔ‚Ì•ªŠ„”
+    const double kWidth = square.dx / kNumSection; // •ªŠ„‚Ì³‹K‰»
+    const int kNum = square.SideNumber * kNumSection; // ‘S‹æŠÔ‚Ì•ªŠ„”
+    const double volume_element = pow(kWidth, 3);
+
+    Eigen::VectorXd cal_points(kNum);
+    int index = 0;
+    for (int offset = 0; offset < square.SideNumber; offset++) {
+        for (int divIndex = 0; divIndex < kNumSection; divIndex++) {
+            cal_points(index) = (static_cast<double>(offset) + 1.0 / (2.0 * kNumSection)) * square.dx + divIndex * kWidth - 1.0;
+            index++;
+        }
+    }
+
+    // ŒW”‚Ì‰Šú‰»
+    Eigen::VectorXd Phi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+    // ŒW”‚ÌŒvZ
+    for (int i = 0; i < NumberOfParticles; i++) {
+        Phi(3 * i) = phi(3 * i) - 2 * phi_current(3 * i) + phi_previous(3 * i);
+        Phi(3 * i + 1) = phi(3 * i + 1) - 2 * phi_current(3 * i + 1) + phi_previous(3 * i + 1);
+        Phi(3 * i + 2) = phi(3 * i + 2) - 2 * phi_current(3 * i + 2) + phi_previous(3 * i + 2);
+    }
+    // std::cout << "Phi : " << std::endl;
+    // std::cout << Phi << std::endl;
+
+    // “à‘}ŠÖ”‚ÌŒvZ
+    // ‹æŠÔ•ªŠ„
+    for (int xd = 0; xd < kNum; xd++) {
+        for (int yd = 0; yd < kNum; yd++) {
+            for (int zd = 0; zd < kNum; zd++) {
+                Eigen::Vector3d cal_point(cal_points(xd), cal_points(yd), cal_points(zd));
+                Eigen::VectorXd WeightIXi = Eigen::VectorXd::Zero(3 * NumberOfParticles);
+
+                // Stencil Base‚ÌŒvZ
+                Eigen::Vector3d stencil_base = calculateStencilBase(cal_point, square.dx);
+
+                // Stencils—ñ‚Æstencil_num‚Ì¶¬
+                Eigen::MatrixXi stencil;
+                std::vector<int> stencil_num = generateStencil(stencil_base, stencil);
+
+                for (int xi = 0; xi < NumberOfParticles; xi++) {
+                    if (std::find(stencil_num.begin(), stencil_num.end(), xi) == stencil_num.end()) continue;
+                    Eigen::Vector3i grid_xi = FlatToGrid(xi);
+
+                    Eigen::Vector3d grid_point_coordinates_xi = { re_phi(3 * xi), re_phi(3 * xi + 1), re_phi(3 * xi + 2) };
+
+                    // xiŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                    double hat_x_xi = HatFunction((cal_point(0) - grid_point_coordinates_xi(0)) / square.dx);
+                    double hat_y_xi = HatFunction((cal_point(1) - grid_point_coordinates_xi(1)) / square.dx);
+                    double hat_z_xi = HatFunction((cal_point(2) - grid_point_coordinates_xi(2)) / square.dx);
+                    double f_xi_0 = hat_x_xi * hat_y_xi * hat_z_xi;
+
+                    for (int i = 0; i < NumberOfParticles; i++) {
+                        Eigen::Vector3i i_minus_xi = FlatToGrid(i) - grid_xi;
+                        if (!allElementsWithinOne(i_minus_xi)) continue;
+
+                        Eigen::Vector3d grid_point_coordinates_i = { re_phi(3 * i), re_phi(3 * i + 1), re_phi(3 * i + 2) };
+
+                        // “à‘}ŠÖ”‚ÌŒvZ
+                        // iŠÖ˜A‚Ì“à‘}ŠÖ”‚ÌŒvZ
+                        double hat_x_i = HatFunction((cal_point(0) - grid_point_coordinates_i(0)) / square.dx);
+                        double hat_y_i = HatFunction((cal_point(1) - grid_point_coordinates_i(1)) / square.dx);
+                        double hat_z_i = HatFunction((cal_point(2) - grid_point_coordinates_i(2)) / square.dx);
+                        double f_i_0 = hat_x_i * hat_y_i * hat_z_i;
+
+                        for (int p = 0; p < dimensions; p++) {
+                            WeightIXi(3 * xi + p) += Phi(3 * i + p) * f_i_0 * f_xi_0;
+                        }
+                    }
+
+                    for (int row = 0; row < dimensions; row++) { // s”
+                        // Gradientd4(3 * xi + row) += rho * (1 / pow(dt, 2)) * volume_element * WeightIXi(3 * xi + row);
+                        Gradientd4(3 * xi + row) += rho * volume_element * WeightIXi(3 * xi + row);
+
+                    }
+                }
+
+            }
+        }
+    }
+
+    return Gradientd4;
 }

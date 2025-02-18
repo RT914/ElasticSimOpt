@@ -12,7 +12,7 @@
 #include "../include/NewtonRaphsonMethod.h"
 // #include "export.h"
 
-Square square = createSquare(NumberOfOneDemensionParticles);
+
 
 // fem_for_key用
 int calculation_times = 0;
@@ -20,15 +20,6 @@ int calculation_times = 0;
 Eigen::Vector3d gravity{ 0.0, 0.0, -9.81 };
 
 Eigen::VectorXd new_phi;
-
-void calVelocity()
-{
-	for (int i = 0; i < pow(NumberOfOneDemensionParticles, 3); i++) {
-		square.points[i].velocity = square.points[i].velocity + gravity * dt;
-
-	}
-}
-
 
 Eigen::Vector3d calConflict(Eigen::Vector3d vel, Eigen::Vector3d pos)
 {
@@ -39,34 +30,34 @@ Eigen::Vector3d calConflict(Eigen::Vector3d vel, Eigen::Vector3d pos)
 	return vel;
 };
 
-
-void calPosition()
+Square fem(Square square, int SimulationTime)
 {
-	for (int i = 0; i < pow(NumberOfOneDemensionParticles, 3); i++) {
-		square.points[i].velocity = calConflict(square.points[i].velocity, square.points[i].position); //衝突判定・計算
-		square.points[i].position = square.points[i].position + square.points[i].velocity * dt;
-	}
-};
+	/*for (int i = 0; i < NumberOfParticles; i++) {
+		std::cout << square.points[i].position[0] << std::endl;
+		std::cout << square.points[i].position[1] << std::endl;
+		std::cout << square.points[i].position[2] << std::endl;
+	}*/
+	
+	new_phi = Newton(square, SimulationTime);
+	for (int i = 0; i < NumberOfParticles; i++) {
+		// 座標の更新
+		square.points[i].previous_position[0] = square.points[i].position[0];
+		square.points[i].previous_position[1] = square.points[i].position[1];
+		square.points[i].previous_position[2] = square.points[i].position[2];
 
-
-void fem(int SimulationTime)
-{
-	if (SimulationTime == 1) {
-		new_phi = Newton(square);
-
-		for (int i = 0; i < NumberOfParticles; i++) {
-			square.points[i].position[0] = new_phi(3 * i);
-			square.points[i].position[1] = new_phi(3 * i + 1);
-			square.points[i].position[2] = new_phi(3 * i + 2);
-		}
+		square.points[i].position[0] = new_phi(3 * i);
+		square.points[i].position[1] = new_phi(3 * i + 1);
+		square.points[i].position[2] = new_phi(3 * i + 2);
 	}
 
 	glColor3f(0.5, 0.0, 0.0);
 	drawSquare(square, 10.0);
 	Ground();
+
+	return square;
 };
 
-void fem_vector(int SimulationTime)
+void fem_vector(Square square, int SimulationTime)
 {
 	if (SimulationTime == 1) {
 		new_phi = NewtonIteration(square);

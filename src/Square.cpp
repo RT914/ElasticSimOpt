@@ -16,6 +16,7 @@ Square createSquare(int N)
 	double dx = 2.0 / SideNumber; // ŠiŽqŠÔ‹——£
 	Square square(pos, dx, SideNumber);
 	Eigen::Vector3d position;
+	Eigen::Vector3d previous_position;
 	Eigen::Vector3d re_position;
 	Eigen::Vector3d velocity;
 	velocity << 0.0, 0.0, 0.0;
@@ -24,9 +25,9 @@ Square createSquare(int N)
 	double power = 0.0;
 
 	// ™’’f•ÏŒ`‚Ì•Ï‰»”{—¦ iŠiŽqŠÔ‹——£~•Ï‰»”{—¦j
-	double magnification = 0.5;
+	double magnification = 0.4;
 	// ‘ÌÏ•ÏŒ`‚Ìk¬”{—¦
-	double reduct = 0.2;
+	double reduct = 0.6;
 	// ‘ÌÏ•ÏŒ`‚ÌŠg‘å”{—¦
 	double expanse = 1.3;
 
@@ -85,12 +86,13 @@ Square createSquare(int N)
 
 				// printf("%d‰ñ–Ú\n", i);
 				position << x, y, z;
+				previous_position << x, y, z;
 				// printf("x:%f, y:%f, z:%f\n", x, y, z);
 				re_position << re_x, re_y, re_z;
 				// printf("x:%f, y:%f, z:%f\n", re_x, re_y, re_z);
 				grid_node << i, j, k;
 				// power* i * 10;
-				Point p = Point(position, re_position, velocity, theta, grid_node, power);
+				Point p = Point(position, previous_position, re_position, velocity, theta, grid_node, power);
 				square.points.emplace_back(p);
 			}
 		}

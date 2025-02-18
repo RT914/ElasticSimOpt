@@ -4,14 +4,14 @@
 #include "Square.h"
 #include <Eigen/Dense>
 
-const double kappa = 1.0;
-const double mu = 1.0;
+const double kappa = 1.0; // ëÃêœíeê´ó¶
+const double mu = 1.0; // ôíífïœå`ó¶
 const double rho = 1.0;
 const double dt = 0.1;
 
 Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta);
-Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power, const Eigen::VectorXd& theta);
-Eigen::VectorXd Newton(Square square);
+Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_current, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power, const Eigen::VectorXd& theta);
+Eigen::VectorXd Newton(Square square, int SimulationTime);
 Eigen::VectorXd NewtonIteration(Square square);
 void exportMatrix_CSV(Eigen::MatrixXd M, std::string file_name);
 void exportVector_CSV(Eigen::VectorXd V, std::string file_name);

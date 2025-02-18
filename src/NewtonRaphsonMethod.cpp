@@ -34,7 +34,7 @@ extern Camera g_Camera;
 int looptimes = 0;
 double EPSILON = 1e-2;
 
-Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta) 
+Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& power, const Eigen::VectorXd& theta)
 {
     // Hessian
     Eigen::MatrixXd MatrixS = Eigen::MatrixXd::Zero(5 * NumberOfParticles, 5 * NumberOfParticles);
@@ -48,28 +48,28 @@ Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, 
     }
 
     // MatrixO(NumberOfParticles, 3 * NumberOfParticles)
-    Eigen::MatrixXd MatrixO = calHessianO(square, re_phi, phi);
+    Eigen::MatrixXd MatrixO = calHessianO(square, re_phi, phi) * pow(dt, 2);
     exportMatrix_CSV(MatrixO, "csv/MatrixO.csv");
     if (MatrixO.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix O" << std::endl;
     }
 
     // MatrixP(3 * NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixP = calHessianP(square, re_phi, phi);
+    Eigen::MatrixXd MatrixP = calHessianP(square, re_phi, phi) * pow(dt, 2);
     exportMatrix_CSV(MatrixP, "csv/MatrixP.csv");
     if (MatrixP.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix P" << std::endl;
     }
 
     // MatrixQ(NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixQ = calHessianQ(square, re_phi);
+    Eigen::MatrixXd MatrixQ = calHessianQ(square, re_phi) * pow(dt, 2);
     exportMatrix_CSV(MatrixQ, "csv/MatrixQ.csv");
     if (MatrixQ.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix Q" << std::endl;
     }
 
     //MatrixR(NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixR = calHessianR(square, re_phi, theta);
+    Eigen::MatrixXd MatrixR = calHessianR(square, re_phi, theta) * pow(dt, 2);
     exportMatrix_CSV(MatrixR, "csv/MatrixR.csv");
     if (MatrixR.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix R" << std::endl;
@@ -88,28 +88,28 @@ Eigen::MatrixXd calMatrixS(const Square& square, const Eigen::VectorXd& re_phi, 
     return MatrixS;
 }
 
-Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power, const Eigen::VectorXd& theta)
+Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, const Eigen::VectorXd& phi, const Eigen::VectorXd& phi_current, const Eigen::VectorXd& phi_previous, const Eigen::VectorXd& power, const Eigen::VectorXd& theta)
 {
     // Gradient
     Eigen::VectorXd Vectore = Eigen::VectorXd::Zero(5 * NumberOfParticles);
 
     // Calculation Gradient
     // Vectorb(NumberOfParticles)
-    Eigen::VectorXd Vectorb = calGradientb(square, re_phi, phi, theta);
+    Eigen::VectorXd Vectorb = calGradientb(square, re_phi, phi, theta) * pow(dt, 2);
     exportVector_CSV(Vectorb, "csv/Vectorb.csv");
     if (Vectorb.array().isNaN().any()) {
         std::cerr << "NaN detected Vector b" << std::endl;
     }
 
     // Vectorc(NumberOfParticles)
-    Eigen::VectorXd Vectorc = calGradientc(square, re_phi, phi, power, theta);
+    Eigen::VectorXd Vectorc = calGradientc(square, re_phi, phi, power, theta) * pow(dt, 2);
     exportVector_CSV(Vectorc, "csv/Vectorc.csv");
     if (Vectorc.array().isNaN().any()) {
         std::cerr << "NaN detected Vector c" << std::endl;
     }
 
     // Vectord(NumberOfParticles)
-    Eigen::VectorXd Vectord = calGradientd(square, re_phi, phi, phi_previous, power);
+    Eigen::VectorXd Vectord = calGradientd(square, re_phi, phi, phi_current, phi_previous, power);
     exportVector_CSV(Vectord, "csv/Vectord.csv");
     if (Vectord.array().isNaN().any()) {
         std::cerr << "NaN detected Vector d" << std::endl;
@@ -125,7 +125,7 @@ Eigen::VectorXd calVectore(const Square& square, const Eigen::VectorXd& re_phi, 
     return Vectore;
 }
 
-Eigen::VectorXd Newton(Square square) {
+Eigen::VectorXd Newton(Square square, int SimulationTime) {
 
     // 実行時間の測定開始
     auto start = std::chrono::high_resolution_clock::now();
@@ -134,11 +134,12 @@ Eigen::VectorXd Newton(Square square) {
     double NormVectorDelta = 1.0;
     int SquarePointsNumber = square.points.size();
     int PointNumbers = 5 * NumberOfParticles;
-    double threshold = 1.0e-2;
+    double threshold = 1.0e-1;
 
     // 変位
     Eigen::VectorXd barphi(3 * NumberOfParticles);
-    Eigen::VectorXd doublebarphi(3 * NumberOfParticles);
+    Eigen::VectorXd phi_current(3 * NumberOfParticles);
+    Eigen::VectorXd phi_previous(3 * NumberOfParticles);
 
     // 格子点座標
     Eigen::VectorXd re_phi(3 * NumberOfParticles);
@@ -154,11 +155,14 @@ Eigen::VectorXd Newton(Square square) {
     // 座標の取得
     for (int i = 0; i < SquarePointsNumber; i++) {
         barphi.segment<3>(3 * i) = square.points[i].position;
-        doublebarphi.segment<3>(3 * i) = square.points[i].position;
+        phi_current.segment<3>(3 * i) = square.points[i].position;
+        phi_previous.segment<3>(3 * i) = square.points[i].previous_position;
         re_phi.segment<3>(3 * i) = square.points[i].reference_position;
         barpower(i) = square.points[i].power;
         bartheta(i) = square.points[i].theta;
     }
+
+    exportVector_CSV(barphi, "csv/barphi.csv");
 
     // Hessian
     Eigen::MatrixXd MatrixS;
@@ -167,7 +171,7 @@ Eigen::VectorXd Newton(Square square) {
     Eigen::VectorXd Vectore;
 
     // 初期値のレンダリング
-    renderAndSave(square, looptimes);
+    if(SimulationTime < 2) renderAndSave(square, 0);
 
     // 閾値の標準化
     // threshold *= pow(PointNumbers, 0.5);
@@ -179,13 +183,17 @@ Eigen::VectorXd Newton(Square square) {
 
         // Hessian
         MatrixS = calMatrixS(square, re_phi, barphi, barpower, bartheta);
+        exportMatrix_CSV(MatrixS, "csv/MatrixS.csv");
 
         // Gradient
-        Vectore = calVectore(square, re_phi, barphi, doublebarphi, barpower, bartheta);
+        Vectore = calVectore(square, re_phi, barphi, phi_current, phi_previous, barpower, bartheta);
+        exportVector_CSV(Vectore, "csv/Vectore.csv");
+        // std::cout << Vectore << std::endl;
 
         Eigen::FullPivLU<Eigen::MatrixXd> LU;
         LU.compute(MatrixS);
         Eigen::VectorXd VectorDelta = LU.solve(Vectore);
+        // std::cout << VectorDelta << std::endl;
 
         // 探索方向ベクトルの定義
         Eigen::VectorXd VectorDeltaPhi(3 * NumberOfParticles);
@@ -196,6 +204,7 @@ Eigen::VectorXd Newton(Square square) {
         for (int i = 0; i < NumberOfParticles; i++) {
             VectorDeltaPhi.segment<3>(3 * i) = VectorDelta.segment<3>(3 * i);
         }
+        exportVector_CSV(VectorDeltaPhi, "csv/VectorDeltaPhi.csv");
 
         // Set VectorDeltaTheta
         VectorDeltaTheta = VectorDelta.segment(NumberOfParticles * 3, NumberOfParticles);
@@ -217,21 +226,19 @@ Eigen::VectorXd Newton(Square square) {
         double lambda = 1.0;
         int line_search_times = 0;
         
-        
         // 初期化
         Eigen::VectorXd barphi_prime = VectorDeltaPhi * lambda + barphi;
         Eigen::VectorXd bartheta_prime = VectorDeltaTheta * lambda + bartheta;
         Eigen::VectorXd barpower_prime = VectorDeltaPower * lambda + barpower;
 
         Eigen::MatrixXd MatrixS_prime = calMatrixS(square, re_phi, barphi_prime, barpower_prime, bartheta_prime);
-        Eigen::VectorXd Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
+        Eigen::VectorXd Vectore_prime = calVectore(square, re_phi, barphi_prime, phi_current, phi_previous, barpower_prime, bartheta_prime);
 
         // Armijo条件 & 曲率条件の計算
         Eigen::VectorXd f_prime = Vectore_prime;
         Eigen::VectorXd f = Vectore;
         Eigen::VectorXd nabla_f_p = MatrixS * VectorDelta;
         Eigen::VectorXd nabla_f_prime_p = MatrixS_prime * VectorDelta;
-        
         
         // Armijo条件
         while ( !( f_prime.norm() <= f.norm() + (eps1 * lambda * nabla_f_p).norm())) {
@@ -269,19 +276,20 @@ Eigen::VectorXd Newton(Square square) {
             bartheta_prime = VectorDeltaTheta * lambda + bartheta;
             barpower_prime = VectorDeltaPower * lambda + barpower;   
 
-            Vectore_prime = calVectore(square, re_phi, barphi_prime, doublebarphi, barpower_prime, bartheta_prime);
+            Vectore_prime = calVectore(square, re_phi, barphi_prime, phi_current, phi_previous, barpower_prime, bartheta_prime);
 
             // Armijo 条件の再計算
             f_prime = Vectore_prime;
             nabla_f_p = MatrixS * VectorDelta;
         }
         std::cout << std::endl;
+        
 
         // Update
         barphi += lambda * VectorDeltaPhi;
         bartheta += lambda * VectorDeltaTheta;
         barpower += lambda * VectorDeltaPower;
-
+        
         // 各反復での画像出力
         for (int i = 0; i < NumberOfParticles; i++) {
             square.points[i].position[0] = barphi(3 * i); 
@@ -297,6 +305,7 @@ Eigen::VectorXd Newton(Square square) {
     Eigen::VectorXd vec = Eigen::Map<Eigen::VectorXd>(NormVec.data(), NormVec.size());
     exportVector_CSV(vec, "csv/NormVec.csv");
 
+    
     // 1辺の格子数
     int n = square.SideNumber + 1;
 
@@ -319,11 +328,25 @@ Eigen::VectorXd Newton(Square square) {
         std::cout << "これは立方体ではありません。" << std::endl;
     }
 
+    
+
+    looptimes = 0;
+
     // 実行時間の測定終了
     auto end = std::chrono::high_resolution_clock::now();
     // 実行時間の計算
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
+
+    exportVector_CSV(barphi, "csv/newphi.csv");
+
+    // 各反復での画像出力
+    for (int i = 0; i < NumberOfParticles; i++) {
+        square.points[i].position[0] = barphi(3 * i);
+        square.points[i].position[1] = barphi(3 * i + 1);
+        square.points[i].position[2] = barphi(3 * i + 2);
+    }
+    renderAndSave(square, SimulationTime);
 
     return barphi;
 }
@@ -342,7 +365,8 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // 変位
     Eigen::VectorXd barphi(3 * NumberOfParticles);
-    Eigen::VectorXd doublebarphi(3 * NumberOfParticles);
+    Eigen::VectorXd phi_current(3 * NumberOfParticles);
+    Eigen::VectorXd phi_previous(3 * NumberOfParticles);
 
     // 格子点座標
     Eigen::VectorXd re_phi(3 * NumberOfParticles);
@@ -356,7 +380,8 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // 座標の取得
     for (int i = 0; i < SquarePointsNumber; i++) {
         barphi.segment<3>(3 * i) = square.points[i].position;
-        doublebarphi.segment<3>(3 * i) = square.points[i].position;
+        phi_current.segment<3>(3 * i) = square.points[i].position;
+        phi_previous.segment<3>(3 * i) = square.points[i].position;
         re_phi.segment<3>(3 * i) = square.points[i].reference_position;
         barpower(i) = square.points[i].power;
         bartheta(i) = square.points[i].theta;
@@ -373,40 +398,40 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // Calculation Hessian
     // MatrixN(3 * NumberOfParticles, 3 * NumberOfParticles)
-    Eigen::MatrixXd MatrixN = Eigen::MatrixXd::Zero(3 * NumberOfParticles, 3 * NumberOfParticles);
-    // Eigen::MatrixXd MatrixN = calHessianN(square, re_phi, barphi, barpower);
+    // Eigen::MatrixXd MatrixN = Eigen::MatrixXd::Zero(3 * NumberOfParticles, 3 * NumberOfParticles);
+    Eigen::MatrixXd MatrixN = calHessianN(square, re_phi, barphi, barpower);
     exportMatrix_CSV(MatrixN, "csv/MatrixN.csv");
     if (MatrixN.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix N" << std::endl;
     }
 
     // MatrixO(3 * NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixO = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
-    // Eigen::MatrixXd MatrixO = calHessianO(square, re_phi, barphi);
+    // Eigen::MatrixXd MatrixO = Eigen::MatrixXd::Zero(3 * NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd MatrixO = calHessianO(square, re_phi, barphi);
     exportMatrix_CSV(MatrixO, "csv/MatrixO.csv");
     if (MatrixO.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix O" << std::endl;
     }
 
     // MatrixP(NumberOfParticles, 3 * NumberOfParticles)
-    Eigen::MatrixXd MatrixP = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
-    // Eigen::MatrixXd MatrixP = calHessianP(square, re_phi, barphi);
+    // Eigen::MatrixXd MatrixP = Eigen::MatrixXd::Zero(NumberOfParticles, 3 * NumberOfParticles);
+    Eigen::MatrixXd MatrixP = calHessianP(square, re_phi, barphi);
     exportMatrix_CSV(MatrixP, "csv/MatrixP.csv");
     if (MatrixP.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix P" << std::endl;
     }
 
     // MatrixQ(NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixQ = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
-    // Eigen::MatrixXd MatrixQ = calHessianQ(square, re_phi);
+    // Eigen::MatrixXd MatrixQ = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd MatrixQ = calHessianQ(square, re_phi);
     exportMatrix_CSV(MatrixQ, "csv/MatrixQ.csv");
     if (MatrixQ.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix Q" << std::endl;
     }
 
     //MatrixR(NumberOfParticles, NumberOfParticles)
-    Eigen::MatrixXd MatrixR = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
-    // Eigen::MatrixXd MatrixR = calHessianR(square, re_phi, bartheta);
+    // Eigen::MatrixXd MatrixR = Eigen::MatrixXd::Zero(NumberOfParticles, NumberOfParticles);
+    Eigen::MatrixXd MatrixR = calHessianR(square, re_phi, bartheta);
     exportMatrix_CSV(MatrixR, "csv/MatrixR.csv");
     if (MatrixR.array().isNaN().any()) {
         std::cerr << "NaN detected Matrix R" << std::endl;
@@ -426,9 +451,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // Calculation Gradient
     // Vectorb(NumberOfParticles)
-    Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
-    // Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
-    // exportVector_CSV(Vectorb, "csv/Vectorb.csv");
+    // Eigen::VectorXd Vectorb = Eigen::VectorXd::Zero(NumberOfParticles);
+    Eigen::VectorXd Vectorb = calGradientb(square, re_phi, barphi, bartheta);
+    exportVector_CSV(Vectorb, "csv/Vectorb.csv");
     if (Vectorb.array().isNaN().any()) {
         std::cerr << "NaN detected Vector b" << std::endl;
     }
@@ -437,9 +462,9 @@ Eigen::VectorXd NewtonIteration(Square square) {
     // std::cout << Vectorb << std::endl;
 
     // Vectorc(NumberOfParticles)
-    Eigen::VectorXd Vectorc = Eigen::VectorXd::Zero(NumberOfParticles);
-    // Eigen::VectorXd Vectorc = calGradientc(square, re_phi, barphi, barpower, bartheta);
-    // exportVector_CSV(Vectorc, "csv/Vectorc.csv");
+    // Eigen::VectorXd Vectorc = Eigen::VectorXd::Zero(NumberOfParticles);
+    Eigen::VectorXd Vectorc = calGradientc(square, re_phi, barphi, barpower, bartheta);
+    exportVector_CSV(Vectorc, "csv/Vectorc.csv");
     if (Vectorc.array().isNaN().any()) {
         std::cerr << "NaN detected Vector c" << std::endl;
     }
@@ -449,7 +474,7 @@ Eigen::VectorXd NewtonIteration(Square square) {
 
     // Vectord(3 * NumberOfParticles)
     // Eigen::VectorXd Vectord = Eigen::VectorXd::Zero(3 * NumberOfParticles);
-    Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, doublebarphi, barpower);
+    Eigen::VectorXd Vectord = calGradientd(square, re_phi, barphi, phi_current, phi_previous, barpower);
     exportVector_CSV(Vectord, "csv/Vectord.csv");
     if (Vectord.array().isNaN().any()) {
         std::cerr << "NaN detected Vector d" << std::endl;
